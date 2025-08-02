@@ -1,0 +1,644 @@
+[
+  {
+    "format": "jpeg",
+    "path": "jpeg/colorspace/colorspace_rgb.jpg",
+    "jp": "RGB色空間（Web標準）",
+    "en": "RGB color space (Web standard)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/colorspace/colorspace_cmyk.jpg",
+    "jp": "CMYK色空間（印刷用）",
+    "en": "CMYK color space (for printing)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/colorspace/colorspace_grayscale.jpg",
+    "jp": "グレースケール（単一チャンネル）",
+    "en": "Grayscale (single channel)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_cmyk_lowquality.jpg",
+    "jp": "CMYK + 低品質（品質30）",
+    "en": "CMYK + low quality (quality 30)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_progressive_fullmeta.jpg",
+    "jp": "プログレッシブ + 完全メタデータ",
+    "en": "Progressive + full metadata"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_thumbnail_progressive.jpg",
+    "jp": "サムネイル + プログレッシブ",
+    "en": "Thumbnail + progressive"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_orientation_metadata.jpg",
+    "jp": "回転方向 + 複雑メタデータ",
+    "en": "Orientation + complex metadata"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_jfif_exif_dpi.jpg",
+    "jp": "JFIF/EXIF DPI競合",
+    "en": "JFIF/EXIF DPI conflict"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_xmp_iptc_conflict.jpg",
+    "jp": "XMP/IPTC競合情報",
+    "en": "XMP/IPTC conflict information"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/critical/critical_xmp_complex.jpg",
+    "jp": "複雑なXMP構造",
+    "en": "Complex XMP structure"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/metadata/metadata_none.jpg",
+    "jp": "メタデータなし",
+    "en": "No metadata"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/metadata/metadata_basic_exif.jpg",
+    "jp": "基本EXIFデータのみ",
+    "en": "Basic EXIF data only"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/metadata/metadata_gps.jpg",
+    "jp": "GPS位置データ含む",
+    "en": "Including GPS location data"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/metadata/metadata_full_exif.jpg",
+    "jp": "完全なEXIFメタデータセット",
+    "en": "Full EXIF metadata set"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/metadata/metadata_xmp.jpg",
+    "jp": "XMPメタデータブロック含む",
+    "en": "Including XMP metadata block"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/metadata/metadata_iptc.jpg",
+    "jp": "IPTCメタデータレコード含む",
+    "en": "Including IPTC metadata record"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/icc/icc_none.jpg",
+    "jp": "カラープロファイルなし",
+    "en": "No color profile"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/orientation/orientation_1.jpg",
+    "jp": "通常方向（左上）",
+    "en": "Normal orientation (top-left)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/orientation/orientation_3.jpg",
+    "jp": "180度回転（右下）",
+    "en": "180 degree rotation (bottom-right)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/orientation/orientation_6.jpg",
+    "jp": "90度時計回り（右上）",
+    "en": "90 degree clockwise (top-right)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/orientation/orientation_8.jpg",
+    "jp": "90度反時計回り（左下）",
+    "en": "90 degree counter-clockwise (bottom-left)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/dpi/dpi_jfif_units0.jpg",
+    "jp": "JFIFユニット0（アスペクト比のみ）",
+    "en": "JFIF unit 0 (aspect ratio only)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/dpi/dpi_jfif_72dpi.jpg",
+    "jp": "JFIFユニット1、72 DPI（Web標準）",
+    "en": "JFIF unit 1, 72 DPI (Web standard)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/dpi/dpi_jfif_200dpi.jpg",
+    "jp": "JFIFユニット1、200 DPI（印刷品質）",
+    "en": "JFIF unit 1, 200 DPI (print quality)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/dpi/dpi_exif_72dpi.jpg",
+    "jp": "EXIF指定72 DPI（JFIFなし）",
+    "en": "EXIF specified 72 DPI (no JFIF)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/dpi/dpi_exif_200dpi.jpg",
+    "jp": "EXIF指定200 DPI（JFIFなし）",
+    "en": "EXIF specified 200 DPI (no JFIF)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/encoding/encoding_baseline.jpg",
+    "jp": "標準ベースラインJPEG",
+    "en": "Standard baseline JPEG"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/encoding/encoding_progressive.jpg",
+    "jp": "プログレッシブJPEG（Web表示用）",
+    "en": "Progressive JPEG (for web display)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/thumbnail/thumbnail_none.jpg",
+    "jp": "サムネイルなし",
+    "en": "No thumbnail"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/thumbnail/thumbnail_embedded.jpg",
+    "jp": "EXIFサムネイル埋め込み",
+    "en": "EXIF thumbnail embedded"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/quality/quality_20.jpg",
+    "jp": "非常に低品質（高圧縮アーティファクト）",
+    "en": "Very low quality (high compression artifacts)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/quality/quality_50.jpg",
+    "jp": "中品質（バランス型）",
+    "en": "Medium quality (balanced)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/quality/quality_80.jpg",
+    "jp": "高品質（最小アーティファクト）",
+    "en": "High quality (minimal artifacts)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/quality/quality_95.jpg",
+    "jp": "非常に高品質（ほぼロスレス）",
+    "en": "Very high quality (nearly lossless)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/subsampling/subsampling_444.jpg",
+    "jp": "クロマサブサンプリングなし（フルカラー情報）",
+    "en": "No chroma subsampling (full color information)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/subsampling/subsampling_422.jpg",
+    "jp": "中程度のクロマサブサンプリング",
+    "en": "Moderate chroma subsampling"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/subsampling/subsampling_420.jpg",
+    "jp": "高度なクロマサブサンプリング（最小ファイルサイズ）",
+    "en": "High chroma subsampling (minimum file size)"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/icc/icc_srgb.jpg",
+    "jp": "標準sRGBカラープロファイル",
+    "en": "Standard sRGB color profile"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/icc/icc_adobergb.jpg",
+    "jp": "Adobe RGB広色域プロファイル",
+    "en": "Adobe RGB wide gamut profile"
+  },
+  {
+    "format": "png",
+    "path": "png/colortype/colortype_grayscale.png",
+    "jp": "8ビットグレースケール",
+    "en": "8-bit grayscale"
+  },
+  {
+    "format": "png",
+    "path": "png/colortype/colortype_palette.png",
+    "jp": "8ビットインデックスカラー",
+    "en": "8-bit indexed color"
+  },
+  {
+    "format": "png",
+    "path": "png/colortype/colortype_rgb.png",
+    "jp": "24ビットRGBトゥルーカラー",
+    "en": "24-bit RGB true color"
+  },
+  {
+    "format": "png",
+    "path": "png/colortype/colortype_rgba.png",
+    "jp": "32ビットRGBA（アルファ付き）",
+    "en": "32-bit RGBA (with alpha)"
+  },
+  {
+    "format": "png",
+    "path": "png/colortype/colortype_grayscale_alpha.png",
+    "jp": "16ビットグレースケール+アルファ",
+    "en": "16-bit grayscale+alpha"
+  },
+  {
+    "format": "png",
+    "path": "png/chunk/chunk_gamma.png",
+    "jp": "ガンマ補正チャンク",
+    "en": "Gamma correction chunk"
+  },
+  {
+    "format": "png",
+    "path": "png/chunk/chunk_background.png",
+    "jp": "背景色チャンク",
+    "en": "Background color chunk"
+  },
+  {
+    "format": "png",
+    "path": "png/chunk/chunk_transparency.png",
+    "jp": "透明度チャンク",
+    "en": "Transparency chunk"
+  },
+  {
+    "format": "png",
+    "path": "png/critical/critical_interlace_highres.png",
+    "jp": "Adam7インターレース+高解像度",
+    "en": "Adam7 interlace + high resolution"
+  },
+  {
+    "format": "png",
+    "path": "png/metadata/metadata_none.png",
+    "jp": "テキストメタデータなし",
+    "en": "No text metadata"
+  },
+  {
+    "format": "png",
+    "path": "png/metadata/metadata_text.png",
+    "jp": "シンプルテキストチャンク",
+    "en": "Simple text chunk"
+  },
+  {
+    "format": "png",
+    "path": "png/metadata/metadata_compressed.png",
+    "jp": "圧縮テキストチャンク",
+    "en": "Compressed text chunk"
+  },
+  {
+    "format": "png",
+    "path": "png/compression/compression_0.png",
+    "jp": "無圧縮（最速処理）",
+    "en": "No compression (fastest processing)"
+  },
+  {
+    "format": "png",
+    "path": "png/alpha/alpha_transparent.png",
+    "jp": "完全透明領域（アルファ0）",
+    "en": "Fully transparent regions (alpha 0)"
+  },
+  {
+    "format": "png",
+    "path": "png/alpha/alpha_opaque.png",
+    "jp": "完全不透明（アルファ255）",
+    "en": "Fully opaque (alpha 255)"
+  },
+  {
+    "format": "png",
+    "path": "png/alpha/alpha_semitransparent.png",
+    "jp": "混合透明度（アルファ128領域）",
+    "en": "Mixed transparency (alpha 128 regions)"
+  },
+  {
+    "format": "png",
+    "path": "png/compression/compression_6.png",
+    "jp": "デフォルト圧縮レベル",
+    "en": "Default compression level"
+  },
+  {
+    "format": "png",
+    "path": "png/compression/compression_9.png",
+    "jp": "最大圧縮（最小ファイルサイズ）",
+    "en": "Maximum compression (minimum file size)"
+  },
+  {
+    "format": "png",
+    "path": "png/critical/critical_maxcompression_paeth.png",
+    "jp": "最大圧縮+Paethフィルター",
+    "en": "Maximum compression + Paeth filter"
+  },
+  {
+    "format": "png",
+    "path": "png/depth/depth_1bit.png",
+    "jp": "1ビットモノクロビットマップ",
+    "en": "1-bit monochrome bitmap"
+  },
+  {
+    "format": "png",
+    "path": "png/filter/filter_none.png",
+    "jp": "フィルタリングなし",
+    "en": "No filtering"
+  },
+  {
+    "format": "png",
+    "path": "png/filter/filter_sub.png",
+    "jp": "Subフィルター（水平予測）",
+    "en": "Sub filter (horizontal prediction)"
+  },
+  {
+    "format": "png",
+    "path": "png/filter/filter_up.png",
+    "jp": "Upフィルター（垂直予測）",
+    "en": "Up filter (vertical prediction)"
+  },
+  {
+    "format": "png",
+    "path": "png/filter/filter_average.png",
+    "jp": "Averageフィルター（水平垂直結合）",
+    "en": "Average filter (horizontal-vertical combined)"
+  },
+  {
+    "format": "png",
+    "path": "png/filter/filter_paeth.png",
+    "jp": "Paeth予測フィルター",
+    "en": "Paeth prediction filter"
+  },
+  {
+    "format": "png",
+    "path": "png/interlace/interlace_adam7.png",
+    "jp": "Adam7インターレース",
+    "en": "Adam7 interlace"
+  },
+  {
+    "format": "png",
+    "path": "png/depth/depth_8bit.png",
+    "jp": "8ビット/チャンネル標準",
+    "en": "8-bit/channel standard"
+  },
+  {
+    "format": "png",
+    "path": "png/depth/depth_16bit.png",
+    "jp": "16ビット/チャンネル高精度",
+    "en": "16-bit/channel high precision"
+  },
+  {
+    "format": "png",
+    "path": "png/interlace/interlace_none.png",
+    "jp": "標準シーケンシャルPNG",
+    "en": "Standard sequential PNG"
+  },
+  {
+    "format": "png",
+    "path": "png/critical/critical_16bit_palette.png",
+    "jp": "16ビット→パレット変換",
+    "en": "16-bit to palette conversion"
+  },
+  {
+    "format": "png",
+    "path": "png/critical/critical_alpha_grayscale.png",
+    "jp": "RGBA→グレースケール+アルファ変換",
+    "en": "RGBA to grayscale+alpha conversion"
+  },
+  {
+    "format": "gif",
+    "path": "gif/critical/critical_25frames_16colors_dither.gif",
+    "jp": "多フレーム+小パレット+ディザリング",
+    "en": "Many frames + small palette + dithering"
+  },
+  {
+    "format": "gif",
+    "path": "gif/critical/critical_optimized_complex.gif",
+    "jp": "最適化+複雑アニメーション",
+    "en": "Optimized + complex animation"
+  },
+  {
+    "format": "gif",
+    "path": "gif/no_dither.gif",
+    "jp": "ディザリングなし",
+    "en": "No dithering"
+  },
+  {
+    "format": "gif",
+    "path": "gif/floyd_steinberg.gif",
+    "jp": "Floyd-Steinbergディザリング",
+    "en": "Floyd-Steinberg dithering"
+  },
+  {
+    "format": "gif",
+    "path": "gif/ordered_dither.gif",
+    "jp": "規則的ディザリングパターン",
+    "en": "Ordered dithering pattern"
+  },
+  {
+    "format": "gif",
+    "path": "gif/multi_frame.gif",
+    "jp": "マルチフレームアニメーション（10フレーム）",
+    "en": "Multi-frame animation (10 frames)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/normal_10fps.gif",
+    "jp": "通常速度（10 FPS、100ms/フレーム）",
+    "en": "Normal speed (10 FPS, 100ms/frame)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/infinite_loop.gif",
+    "jp": "無限ループアニメーション",
+    "en": "Infinite loop animation"
+  },
+  {
+    "format": "gif",
+    "path": "gif/critical_25frames_16colors_dither.gif",
+    "jp": "多フレーム+小パレット+ディザリング",
+    "en": "Many frames + small palette + dithering"
+  },
+  {
+    "format": "gif",
+    "path": "gif/critical_optimized_complex.gif",
+    "jp": "最適化+複雑アニメーション",
+    "en": "Optimized + complex animation"
+  },
+  {
+    "format": "gif",
+    "path": "gif/unoptimized.gif",
+    "jp": "フレーム最適化なし",
+    "en": "No frame optimization"
+  },
+  {
+    "format": "gif",
+    "path": "gif/2colors.gif",
+    "jp": "最小2色パレット",
+    "en": "Minimum 2 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/16colors.gif",
+    "jp": "制限16色パレット",
+    "en": "Limited 16 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/256colors.gif",
+    "jp": "フル256色パレット",
+    "en": "Full 256 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/critical_fast_2colors.gif",
+    "jp": "高速FPS+2色パレット",
+    "en": "Fast FPS + 2 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/single_frame.gif",
+    "jp": "単一フレーム（静止画像）",
+    "en": "Single frame (static image)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/slow_5fps.gif",
+    "jp": "遅いアニメーション（5 FPS、200ms/フレーム）",
+    "en": "Slow animation (5 FPS, 200ms/frame)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/fast_25fps.gif",
+    "jp": "速いアニメーション（25 FPS、40ms/フレーム）",
+    "en": "Fast animation (25 FPS, 40ms/frame)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/no_loop.gif",
+    "jp": "単一再生（ループ回数1）",
+    "en": "Single play (loop count 1)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/optimized.gif",
+    "jp": "フレーム差分最適化有効",
+    "en": "Frame difference optimization enabled"
+  },
+  {
+    "format": "gif",
+    "path": "gif/frame/single_frame.gif",
+    "jp": "単一フレーム（静止画像）",
+    "en": "Single frame (static image)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/critical/critical_fast_2colors.gif",
+    "jp": "高速FPS+2色パレット",
+    "en": "Fast FPS + 2 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/dither/no_dither.gif",
+    "jp": "ディザリングなし",
+    "en": "No dithering"
+  },
+  {
+    "format": "gif",
+    "path": "gif/dither/floyd_steinberg.gif",
+    "jp": "Floyd-Steinbergディザリング",
+    "en": "Floyd-Steinberg dithering"
+  },
+  {
+    "format": "gif",
+    "path": "gif/dither/ordered_dither.gif",
+    "jp": "規則的ディザリングパターン",
+    "en": "Ordered dithering pattern"
+  },
+  {
+    "format": "gif",
+    "path": "gif/frame/multi_frame.gif",
+    "jp": "マルチフレームアニメーション（10フレーム）",
+    "en": "Multi-frame animation (10 frames)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/framerate/slow_5fps.gif",
+    "jp": "遅いアニメーション（5 FPS、200ms/フレーム）",
+    "en": "Slow animation (5 FPS, 200ms/frame)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/framerate/normal_10fps.gif",
+    "jp": "通常速度（10 FPS、100ms/フレーム）",
+    "en": "Normal speed (10 FPS, 100ms/frame)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/framerate/fast_25fps.gif",
+    "jp": "速いアニメーション（25 FPS、40ms/フレーム）",
+    "en": "Fast animation (25 FPS, 40ms/frame)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/loop/no_loop.gif",
+    "jp": "単一再生（ループ回数1）",
+    "en": "Single play (loop count 1)"
+  },
+  {
+    "format": "gif",
+    "path": "gif/loop/infinite_loop.gif",
+    "jp": "無限ループアニメーション",
+    "en": "Infinite loop animation"
+  },
+  {
+    "format": "gif",
+    "path": "gif/optimization/unoptimized.gif",
+    "jp": "フレーム最適化なし",
+    "en": "No frame optimization"
+  },
+  {
+    "format": "gif",
+    "path": "gif/optimization/optimized.gif",
+    "jp": "フレーム差分最適化有効",
+    "en": "Frame difference optimization enabled"
+  },
+  {
+    "format": "gif",
+    "path": "gif/palette/2colors.gif",
+    "jp": "最小2色パレット",
+    "en": "Minimum 2 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/palette/16colors.gif",
+    "jp": "制限16色パレット",
+    "en": "Limited 16 color palette"
+  },
+  {
+    "format": "gif",
+    "path": "gif/palette/256colors.gif",
+    "jp": "フル256色パレット",
+    "en": "Full 256 color palette"
+  },
+  {
+    "format": "jpeg",
+    "path": "jpeg/icc/icc_applep3.jpg",
+    "jp": "Apple Display P3広色域プロファイル",
+    "en": "Apple Display P3 wide gamut profile"
+  }
+]
