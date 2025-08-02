@@ -17,9 +17,9 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::InvalidFormat(msg) => write!(f, "Invalid format: {}", msg),
-            Error::Io(err) => write!(f, "IO error: {}", err),
-            Error::ParseError(msg) => write!(f, "Parse error: {}", msg),
+            Error::InvalidFormat(msg) => write!(f, "Invalid format: {msg}"),
+            Error::Io(err) => write!(f, "IO error: {err}"),
+            Error::ParseError(msg) => write!(f, "Parse error: {msg}"),
         }
     }
 }
@@ -41,12 +41,12 @@ impl From<std::io::Error> for Error {
 
 impl From<jpeg_decoder::Error> for Error {
     fn from(err: jpeg_decoder::Error) -> Self {
-        Error::ParseError(format!("JPEG decode error: {}", err))
+        Error::ParseError(format!("JPEG decode error: {err}"))
     }
 }
 
 impl From<jpeg_encoder::EncodingError> for Error {
     fn from(err: jpeg_encoder::EncodingError) -> Self {
-        Error::ParseError(format!("JPEG encode error: {}", err))
+        Error::ParseError(format!("JPEG encode error: {err}"))
     }
 }

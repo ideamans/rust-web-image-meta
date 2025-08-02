@@ -280,7 +280,7 @@ fn validate_png_decode(data: &[u8]) -> Result<(), Error> {
 
             Ok(())
         }
-        Err(e) => Err(Error::InvalidFormat(format!("Invalid PNG: {}", e))),
+        Err(e) => Err(Error::InvalidFormat(format!("Invalid PNG: {e}"))),
     }
 }
 
