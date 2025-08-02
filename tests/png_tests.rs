@@ -5,7 +5,7 @@ use web_image_meta::Error;
 
 fn load_test_image(path: &str) -> Vec<u8> {
     let full_path = Path::new("tests/test_data").join(path);
-    fs::read(full_path).expect(&format!("Failed to read test image: {}", path))
+    fs::read(full_path).unwrap_or_else(|_| panic!("Failed to read test image: {}", path))
 }
 
 #[test]
@@ -261,7 +261,7 @@ fn test_different_color_types() {
 
     for file in test_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // すべての色タイプで正しく処理できることを確認
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -419,7 +419,7 @@ fn test_various_bit_depths() {
 
     for (file, _depth) in depth_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Bit depth should not affect chunk cleaning
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -443,7 +443,7 @@ fn test_compression_levels() {
 
     for (file, _level) in compression_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Compression level should not affect chunk operations
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -462,7 +462,7 @@ fn test_filter_types() {
 
     for file in filter_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Filter type should not affect chunk operations
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -479,7 +479,7 @@ fn test_alpha_transparency_types() {
 
     for (file, transparency_type) in alpha_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Verify transparency is preserved appropriately
         if transparency_type != "opaque" {
@@ -509,7 +509,7 @@ fn test_special_chunks() {
         // First check if the chunk exists in the original file
         let chunk_exists_in_original = check_chunk_exists(&data, chunk_type);
 
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Special chunks should be handled based on CRITICAL_CHUNKS list
         let chunk_name = std::str::from_utf8(chunk_type).unwrap();
@@ -559,7 +559,7 @@ fn test_interlace_types() {
 
     for (file, _is_interlaced) in interlace_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Interlacing should not affect chunk operations
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -600,7 +600,7 @@ fn test_text_chunk_with_special_characters() {
 
     for (keyword, text) in special_texts {
         let with_text = png::add_text_chunk(&data, keyword, text)
-            .expect(&format!("Failed to add text with {}", keyword));
+            .unwrap_or_else(|_| panic!("Failed to add text with {}", keyword));
 
         let chunks = png::read_text_chunks(&with_text).expect("Failed to read text chunks");
 
@@ -627,7 +627,7 @@ fn test_edge_case_keyword_lengths() {
     let keyword_1 = "A";
     let keyword_79 = "A".repeat(79);
 
-    let with_text_1 = png::add_text_chunk(&data, &keyword_1, "min length")
+    let with_text_1 = png::add_text_chunk(&data, keyword_1, "min length")
         .expect("Should accept 1-character keyword");
     let with_text_79 = png::add_text_chunk(&data, &keyword_79, "max length")
         .expect("Should accept 79-character keyword");

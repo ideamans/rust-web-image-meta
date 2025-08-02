@@ -5,7 +5,7 @@ use web_image_meta::Error;
 
 fn load_test_image(path: &str) -> Vec<u8> {
     let full_path = Path::new("tests/test_data").join(path);
-    fs::read(full_path).expect(&format!("Failed to read test image: {}", path))
+    fs::read(full_path).unwrap_or_else(|_| panic!("Failed to read test image: {}", path))
 }
 
 #[test]
@@ -270,7 +270,7 @@ fn test_all_orientation_values() {
 
     for (file, expected_orientation) in orientation_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // すべてのオリエンテーション値で正しく処理できることを確認
         assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
@@ -310,7 +310,7 @@ fn has_marker(data: &[u8], marker: u8) -> bool {
         }
 
         // スタンドアロンマーカー
-        if current_marker >= 0xD0 && current_marker <= 0xD9 {
+        if (0xD0..=0xD9).contains(&current_marker) {
             continue;
         }
 
@@ -346,7 +346,7 @@ fn find_marker_position(data: &[u8], marker: u8) -> Option<usize> {
         }
 
         // スタンドアロンマーカー
-        if current_marker >= 0xD0 && current_marker <= 0xD9 {
+        if (0xD0..=0xD9).contains(&current_marker) {
             continue;
         }
 
@@ -399,7 +399,7 @@ fn test_various_quality_levels() {
 
     for (file, _quality) in quality_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Quality should not affect metadata cleaning
         assert!(
@@ -426,7 +426,7 @@ fn test_various_subsampling() {
 
     for file in subsampling_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Subsampling should not affect metadata operations
         assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
@@ -445,7 +445,7 @@ fn test_dpi_metadata_handling() {
 
     for (file, has_exif_dpi) in dpi_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // DPI in EXIF should be removed, DPI in JFIF should be preserved
         if has_exif_dpi {
@@ -478,7 +478,7 @@ fn test_metadata_types() {
 
     for (file, metadata_type) in metadata_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // All metadata except orientation should be removed
         assert!(
@@ -519,7 +519,7 @@ fn test_thumbnail_handling() {
 
     for (file, has_thumbnail) in thumbnail_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         if has_thumbnail {
             // Embedded thumbnails in EXIF should be removed
@@ -547,7 +547,7 @@ fn test_icc_profile_types() {
 
     for (file, profile_type) in icc_files {
         let data = load_test_image(file);
-        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+        let cleaned = jpeg::clean_metadata(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Check if ICC profile is preserved when present
         if profile_type != "No ICC" {
@@ -602,10 +602,8 @@ fn contains_xmp(data: &[u8]) -> bool {
         let segment_end = pos + size as usize;
 
         // Check for XMP signature in APP1
-        if marker == 0xE1 && size > 35 && segment_end <= data.len() {
-            if &data[pos + 2..pos + 35] == b"http://ns.adobe.com/xap/1.0/\0" {
-                return true;
-            }
+        if marker == 0xE1 && size > 35 && segment_end <= data.len() && &data[pos + 2..pos + 35] == b"http://ns.adobe.com/xap/1.0/\0" {
+            return true;
         }
 
         pos = segment_end;
@@ -640,10 +638,8 @@ fn has_icc_profile(data: &[u8]) -> bool {
         let segment_end = pos + size as usize;
 
         // Check for ICC_PROFILE in APP2
-        if marker == 0xE2 && size > 14 && segment_end <= data.len() {
-            if &data[pos + 2..pos + 14] == b"ICC_PROFILE\0" {
-                return true;
-            }
+        if marker == 0xE2 && size > 14 && segment_end <= data.len() && &data[pos + 2..pos + 14] == b"ICC_PROFILE\0" {
+            return true;
         }
 
         pos = segment_end;
@@ -673,7 +669,7 @@ fn count_markers(data: &[u8], marker: u8) -> usize {
         }
 
         // スタンドアロンマーカー
-        if current_marker >= 0xD0 && current_marker <= 0xD9 {
+        if (0xD0..=0xD9).contains(&current_marker) {
             continue;
         }
 
@@ -704,7 +700,7 @@ fn has_orientation_in_exif(data: &[u8], expected_value: u16) -> bool {
             break;
         }
 
-        if marker >= 0xD0 && marker <= 0xD9 {
+        if (0xD0..=0xD9).contains(&marker) {
             continue;
         }
 
@@ -715,13 +711,11 @@ fn has_orientation_in_exif(data: &[u8], expected_value: u16) -> bool {
         let size = ((data[pos] as u16) << 8) | (data[pos + 1] as u16);
         let segment_end = pos + size as usize;
 
-        if marker == 0xE1 && size > 8 && segment_end <= data.len() {
-            if &data[pos + 2..pos + 6] == b"Exif" {
-                // EXIFデータを解析
-                let exif_data = &data[pos + 8..segment_end];
-                if let Some(orientation) = extract_orientation_from_exif(exif_data) {
-                    return orientation == expected_value;
-                }
+        if marker == 0xE1 && size > 8 && segment_end <= data.len() && &data[pos + 2..pos + 6] == b"Exif" {
+            // EXIFデータを解析
+            let exif_data = &data[pos + 8..segment_end];
+            if let Some(orientation) = extract_orientation_from_exif(exif_data) {
+                return orientation == expected_value;
             }
         }
 
@@ -746,7 +740,7 @@ fn has_exif_tag(data: &[u8], tag_id: u16) -> bool {
             break;
         }
 
-        if marker >= 0xD0 && marker <= 0xD9 {
+        if (0xD0..=0xD9).contains(&marker) {
             continue;
         }
 
@@ -757,19 +751,17 @@ fn has_exif_tag(data: &[u8], tag_id: u16) -> bool {
         let size = ((data[pos] as u16) << 8) | (data[pos + 1] as u16);
         let segment_end = pos + size as usize;
 
-        if marker == 0xE1 && size > 8 && segment_end <= data.len() {
-            if &data[pos + 2..pos + 6] == b"Exif" {
-                // EXIFデータ内でタグを検索（簡易版）
-                let tag_bytes_be = tag_id.to_be_bytes();
-                let tag_bytes_le = tag_id.to_le_bytes();
-                let exif_data = &data[pos + 8..segment_end];
+        if marker == 0xE1 && size > 8 && segment_end <= data.len() && &data[pos + 2..pos + 6] == b"Exif" {
+            // EXIFデータ内でタグを検索（簡易版）
+            let tag_bytes_be = tag_id.to_be_bytes();
+            let tag_bytes_le = tag_id.to_le_bytes();
+            let exif_data = &data[pos + 8..segment_end];
 
-                for i in 0..exif_data.len().saturating_sub(1) {
-                    if (exif_data[i] == tag_bytes_be[0] && exif_data[i + 1] == tag_bytes_be[1])
-                        || (exif_data[i] == tag_bytes_le[0] && exif_data[i + 1] == tag_bytes_le[1])
-                    {
-                        return true;
-                    }
+            for i in 0..exif_data.len().saturating_sub(1) {
+                if (exif_data[i] == tag_bytes_be[0] && exif_data[i + 1] == tag_bytes_be[1])
+                    || (exif_data[i] == tag_bytes_le[0] && exif_data[i + 1] == tag_bytes_le[1])
+                {
+                    return true;
                 }
             }
         }
