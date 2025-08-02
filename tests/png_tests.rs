@@ -261,7 +261,8 @@ fn test_different_color_types() {
 
     for file in test_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // すべての色タイプで正しく処理できることを確認
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -419,7 +420,8 @@ fn test_various_bit_depths() {
 
     for (file, _depth) in depth_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Bit depth should not affect chunk cleaning
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -443,7 +445,8 @@ fn test_compression_levels() {
 
     for (file, _level) in compression_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Compression level should not affect chunk operations
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -462,7 +465,8 @@ fn test_filter_types() {
 
     for file in filter_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Filter type should not affect chunk operations
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
@@ -479,7 +483,8 @@ fn test_alpha_transparency_types() {
 
     for (file, transparency_type) in alpha_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Verify transparency is preserved appropriately
         if transparency_type != "opaque" {
@@ -509,7 +514,8 @@ fn test_special_chunks() {
         // First check if the chunk exists in the original file
         let chunk_exists_in_original = check_chunk_exists(&data, chunk_type);
 
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Special chunks should be handled based on CRITICAL_CHUNKS list
         let chunk_name = std::str::from_utf8(chunk_type).unwrap();
@@ -559,7 +565,8 @@ fn test_interlace_types() {
 
     for (file, _is_interlaced) in interlace_files {
         let data = load_test_image(file);
-        let cleaned = png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
+        let cleaned =
+            png::clean_chunks(&data).unwrap_or_else(|_| panic!("Failed to clean {}", file));
 
         // Interlacing should not affect chunk operations
         assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
