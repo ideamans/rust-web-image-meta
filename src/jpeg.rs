@@ -350,7 +350,7 @@ fn validate_jpeg_decode(data: &[u8]) -> Result<(), Error> {
 
             Ok(())
         }
-        Err(e) => Err(Error::InvalidFormat(format!("Invalid JPEG: {}", e))),
+        Err(e) => Err(Error::InvalidFormat(format!("Invalid JPEG: {e}"))),
     }
 }
 
