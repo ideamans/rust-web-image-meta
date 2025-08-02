@@ -1,7 +1,7 @@
-use rust_image_meta::jpeg;
-use rust_image_meta::Error;
 use std::fs;
 use std::path::Path;
+use web_image_meta::jpeg;
+use web_image_meta::Error;
 
 fn load_test_image(path: &str) -> Vec<u8> {
     let full_path = Path::new("tests/test_data").join(path);
@@ -359,6 +359,296 @@ fn find_marker_position(data: &[u8], marker: u8) -> Option<usize> {
         pos += size as usize;
     }
     None
+}
+
+#[test]
+fn test_critical_cases() {
+    // Test critical JPEG files that might break processing
+    let critical_files = vec![
+        "jpeg/critical/critical_cmyk_lowquality.jpg",
+        "jpeg/critical/critical_jfif_exif_dpi.jpg",
+        "jpeg/critical/critical_orientation_metadata.jpg",
+        "jpeg/critical/critical_progressive_fullmeta.jpg",
+        "jpeg/critical/critical_thumbnail_progressive.jpg",
+        "jpeg/critical/critical_xmp_complex.jpg",
+        "jpeg/critical/critical_xmp_iptc_conflict.jpg",
+    ];
+
+    for file in critical_files {
+        let data = load_test_image(file);
+
+        // All critical files should be processable without panicking
+        let result = jpeg::clean_metadata(&data);
+        assert!(result.is_ok(), "Failed to process critical file: {}", file);
+
+        // Verify output is still valid JPEG
+        let cleaned = result.unwrap();
+        assert!(!cleaned.is_empty());
+        assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
+    }
+}
+
+#[test]
+fn test_various_quality_levels() {
+    let quality_files = vec![
+        ("jpeg/quality/quality_20.jpg", 20),
+        ("jpeg/quality/quality_50.jpg", 50),
+        ("jpeg/quality/quality_80.jpg", 80),
+        ("jpeg/quality/quality_95.jpg", 95),
+    ];
+
+    for (file, _quality) in quality_files {
+        let data = load_test_image(file);
+        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+
+        // Quality should not affect metadata cleaning
+        assert!(
+            cleaned.len() < data.len(),
+            "Quality {} file should be smaller after cleaning",
+            file
+        );
+
+        // Verify comments work on all quality levels
+        let with_comment =
+            jpeg::write_comment(&cleaned, "Quality test").expect("Failed to write comment");
+        let read_comment = jpeg::read_comment(&with_comment).expect("Failed to read comment");
+        assert_eq!(read_comment, Some("Quality test".to_string()));
+    }
+}
+
+#[test]
+fn test_various_subsampling() {
+    let subsampling_files = vec![
+        "jpeg/subsampling/subsampling_420.jpg",
+        "jpeg/subsampling/subsampling_422.jpg",
+        "jpeg/subsampling/subsampling_444.jpg",
+    ];
+
+    for file in subsampling_files {
+        let data = load_test_image(file);
+        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+
+        // Subsampling should not affect metadata operations
+        assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
+    }
+}
+
+#[test]
+fn test_dpi_metadata_handling() {
+    let dpi_files = vec![
+        ("jpeg/dpi/dpi_exif_72dpi.jpg", true),
+        ("jpeg/dpi/dpi_exif_200dpi.jpg", true),
+        ("jpeg/dpi/dpi_jfif_72dpi.jpg", false),
+        ("jpeg/dpi/dpi_jfif_200dpi.jpg", false),
+        ("jpeg/dpi/dpi_jfif_units0.jpg", false),
+    ];
+
+    for (file, has_exif_dpi) in dpi_files {
+        let data = load_test_image(file);
+        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+
+        // DPI in EXIF should be removed, DPI in JFIF should be preserved
+        if has_exif_dpi {
+            // EXIF DPI info should be removed with other EXIF data
+            assert!(
+                !has_marker(&cleaned, 0xE1),
+                "EXIF should be removed from {}",
+                file
+            );
+        }
+
+        // JFIF (APP0) should always be preserved
+        assert!(
+            has_marker(&cleaned, 0xE0),
+            "JFIF should be preserved in {}",
+            file
+        );
+    }
+}
+
+#[test]
+fn test_metadata_types() {
+    // Test various metadata types
+    let metadata_files = vec![
+        ("jpeg/metadata/metadata_basic_exif.jpg", "basic EXIF"),
+        ("jpeg/metadata/metadata_gps.jpg", "GPS data"),
+        ("jpeg/metadata/metadata_iptc.jpg", "IPTC data"),
+        ("jpeg/metadata/metadata_xmp.jpg", "XMP data"),
+    ];
+
+    for (file, metadata_type) in metadata_files {
+        let data = load_test_image(file);
+        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+
+        // All metadata except orientation should be removed
+        assert!(
+            cleaned.len() < data.len(),
+            "{} should be removed from {}",
+            metadata_type,
+            file
+        );
+
+        // Verify specific metadata markers are removed
+        match metadata_type {
+            "GPS data" | "basic EXIF" => {
+                // GPS is stored in EXIF
+                assert!(
+                    !has_marker(&cleaned, 0xE1) || !has_exif_tag(&cleaned, 0x8825),
+                    "GPS IFD pointer should be removed"
+                );
+            }
+            "IPTC data" => {
+                // IPTC is often in APP13
+                assert!(!has_marker(&cleaned, 0xED), "IPTC marker should be removed");
+            }
+            "XMP data" => {
+                // XMP is in APP1 with different signature
+                assert!(!contains_xmp(&cleaned), "XMP data should be removed");
+            }
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn test_thumbnail_handling() {
+    let thumbnail_files = vec![
+        ("jpeg/thumbnail/thumbnail_embedded.jpg", true),
+        ("jpeg/thumbnail/thumbnail_none.jpg", false),
+    ];
+
+    for (file, has_thumbnail) in thumbnail_files {
+        let data = load_test_image(file);
+        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+
+        if has_thumbnail {
+            // Embedded thumbnails in EXIF should be removed
+            assert!(
+                cleaned.len() < data.len(),
+                "File with thumbnail should be smaller after cleaning"
+            );
+
+            // Verify no EXIF remains (thumbnails are in EXIF IFD1)
+            assert!(
+                !has_marker(&cleaned, 0xE1),
+                "EXIF with thumbnail should be removed"
+            );
+        }
+    }
+}
+
+#[test]
+fn test_icc_profile_types() {
+    let icc_files = vec![
+        ("jpeg/icc/icc_applep3.jpg", "Apple P3"),
+        ("jpeg/icc/icc_none.jpg", "No ICC"),
+        // icc_srgb.jpg is already tested
+    ];
+
+    for (file, profile_type) in icc_files {
+        let data = load_test_image(file);
+        let cleaned = jpeg::clean_metadata(&data).expect(&format!("Failed to clean {}", file));
+
+        // Check if ICC profile is preserved when present
+        if profile_type != "No ICC" {
+            assert!(
+                has_icc_profile(&cleaned),
+                "ICC profile {} should be preserved",
+                profile_type
+            );
+        }
+    }
+}
+
+#[test]
+fn test_grayscale_handling() {
+    let data = load_test_image("jpeg/colorspace/colorspace_grayscale.jpg");
+    let cleaned = jpeg::clean_metadata(&data).expect("Failed to clean grayscale JPEG");
+
+    // Grayscale JPEGs should work the same as color
+    assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
+
+    // Test comment functionality on grayscale
+    let with_comment =
+        jpeg::write_comment(&cleaned, "Grayscale test").expect("Failed to write comment");
+    let comment = jpeg::read_comment(&with_comment).expect("Failed to read comment");
+    assert_eq!(comment, Some("Grayscale test".to_string()));
+}
+
+// Helper function to check for XMP data
+fn contains_xmp(data: &[u8]) -> bool {
+    let mut pos = 2;
+    while pos < data.len() - 1 {
+        if data[pos] != 0xFF {
+            return false;
+        }
+
+        let marker = data[pos + 1];
+        pos += 2;
+
+        if marker == 0xDA {
+            break;
+        }
+
+        if (0xD0..=0xD9).contains(&marker) {
+            continue;
+        }
+
+        if pos + 2 > data.len() {
+            break;
+        }
+
+        let size = ((data[pos] as u16) << 8) | (data[pos + 1] as u16);
+        let segment_end = pos + size as usize;
+
+        // Check for XMP signature in APP1
+        if marker == 0xE1 && size > 35 && segment_end <= data.len() {
+            if &data[pos + 2..pos + 35] == b"http://ns.adobe.com/xap/1.0/\0" {
+                return true;
+            }
+        }
+
+        pos = segment_end;
+    }
+    false
+}
+
+// Helper function to check for ICC profile
+fn has_icc_profile(data: &[u8]) -> bool {
+    let mut pos = 2;
+    while pos < data.len() - 1 {
+        if data[pos] != 0xFF {
+            return false;
+        }
+
+        let marker = data[pos + 1];
+        pos += 2;
+
+        if marker == 0xDA {
+            break;
+        }
+
+        if (0xD0..=0xD9).contains(&marker) {
+            continue;
+        }
+
+        if pos + 2 > data.len() {
+            break;
+        }
+
+        let size = ((data[pos] as u16) << 8) | (data[pos + 1] as u16);
+        let segment_end = pos + size as usize;
+
+        // Check for ICC_PROFILE in APP2
+        if marker == 0xE2 && size > 14 && segment_end <= data.len() {
+            if &data[pos + 2..pos + 14] == b"ICC_PROFILE\0" {
+                return true;
+            }
+        }
+
+        pos = segment_end;
+    }
+    false
 }
 
 // ヘルパー関数：マーカーの数をカウント

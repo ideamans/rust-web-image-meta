@@ -183,20 +183,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rust-image-meta"
-version = "0.1.0"
-dependencies = [
- "crc32fast",
- "jpeg-decoder",
- "jpeg-encoder",
- "kamadak-exif",
- "png",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "ryu"
 version = "1.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -276,3 +262,17 @@ name = "unicode-ident"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a5f39404a5da50712a4c1eecf25e90dd62b613502b7e925fd4e4d19b5c96512"
+
+[[package]]
+name = "web-image-meta"
+version = "0.1.0"
+dependencies = [
+ "crc32fast",
+ "jpeg-decoder",
+ "jpeg-encoder",
+ "kamadak-exif",
+ "png",
+ "serde",
+ "serde_json",
+ "thiserror",
+]

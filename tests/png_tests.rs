@@ -1,7 +1,7 @@
-use rust_image_meta::png;
-use rust_image_meta::Error;
 use std::fs;
 use std::path::Path;
+use web_image_meta::png;
+use web_image_meta::Error;
 
 fn load_test_image(path: &str) -> Vec<u8> {
     let full_path = Path::new("tests/test_data").join(path);
@@ -384,4 +384,287 @@ fn check_if_has_alpha(data: &[u8]) -> bool {
     }
 
     false
+}
+
+#[test]
+fn test_critical_png_cases() {
+    let critical_files = vec![
+        "png/critical/critical_16bit_palette.png",
+        "png/critical/critical_alpha_grayscale.png",
+        "png/critical/critical_interlace_highres.png",
+        "png/critical/critical_maxcompression_paeth.png",
+    ];
+
+    for file in critical_files {
+        let data = load_test_image(file);
+
+        // All critical files should be processable
+        let result = png::clean_chunks(&data);
+        assert!(result.is_ok(), "Failed to process critical file: {}", file);
+
+        // Verify output is still valid PNG
+        let cleaned = result.unwrap();
+        assert!(!cleaned.is_empty());
+        assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+}
+
+#[test]
+fn test_various_bit_depths() {
+    let depth_files = vec![
+        ("png/depth/depth_1bit.png", 1),
+        ("png/depth/depth_8bit.png", 8),
+        ("png/depth/depth_16bit.png", 16),
+    ];
+
+    for (file, _depth) in depth_files {
+        let data = load_test_image(file);
+        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+
+        // Bit depth should not affect chunk cleaning
+        assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+
+        // Text chunks should work on all bit depths
+        let with_text = png::add_text_chunk(&cleaned, "Depth", "test").expect("Failed to add text");
+        let chunks = png::read_text_chunks(&with_text).expect("Failed to read text");
+        assert!(chunks
+            .iter()
+            .any(|c| c.keyword == "Depth" && c.text == "test"));
+    }
+}
+
+#[test]
+fn test_compression_levels() {
+    let compression_files = vec![
+        ("png/compression/compression_0.png", 0),
+        ("png/compression/compression_6.png", 6),
+        ("png/compression/compression_9.png", 9),
+    ];
+
+    for (file, _level) in compression_files {
+        let data = load_test_image(file);
+        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+
+        // Compression level should not affect chunk operations
+        assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+}
+
+#[test]
+fn test_filter_types() {
+    let filter_files = vec![
+        "png/filter/filter_none.png",
+        "png/filter/filter_sub.png",
+        "png/filter/filter_up.png",
+        "png/filter/filter_average.png",
+        "png/filter/filter_paeth.png",
+    ];
+
+    for file in filter_files {
+        let data = load_test_image(file);
+        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+
+        // Filter type should not affect chunk operations
+        assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+}
+
+#[test]
+fn test_alpha_transparency_types() {
+    let alpha_files = vec![
+        ("png/alpha/alpha_opaque.png", "opaque"),
+        ("png/alpha/alpha_transparent.png", "transparent"),
+        // alpha_semitransparent.png is already tested
+    ];
+
+    for (file, transparency_type) in alpha_files {
+        let data = load_test_image(file);
+        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+
+        // Verify transparency is preserved appropriately
+        if transparency_type != "opaque" {
+            // Either tRNS chunk or alpha channel should be preserved
+            let has_trns = check_chunk_exists(&cleaned, b"tRNS");
+            let has_alpha = check_if_has_alpha(&cleaned);
+            assert!(
+                has_trns || has_alpha,
+                "Transparency should be preserved for {} image",
+                transparency_type
+            );
+        }
+    }
+}
+
+#[test]
+fn test_special_chunks() {
+    let chunk_files = vec![
+        ("png/chunk/chunk_background.png", b"bKGD"),
+        ("png/chunk/chunk_transparency.png", b"tRNS"),
+        // chunk_gamma.png is already tested
+    ];
+
+    for (file, chunk_type) in chunk_files {
+        let data = load_test_image(file);
+
+        // First check if the chunk exists in the original file
+        let chunk_exists_in_original = check_chunk_exists(&data, chunk_type);
+
+        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+
+        // Special chunks should be handled based on CRITICAL_CHUNKS list
+        let chunk_name = std::str::from_utf8(chunk_type).unwrap();
+        if ["tRNS", "gAMA", "cHRM", "sRGB", "iCCP", "sBIT", "pHYs"].contains(&chunk_name) {
+            // These chunks are in CRITICAL_CHUNKS list and should be preserved IF they exist in original
+            if chunk_exists_in_original {
+                assert!(
+                    check_chunk_exists(&cleaned, chunk_type),
+                    "{} chunk should be preserved in {}",
+                    chunk_name,
+                    file
+                );
+            }
+        } else {
+            // bKGD is not in CRITICAL_CHUNKS, so it should be removed
+            assert!(
+                !check_chunk_exists(&cleaned, chunk_type),
+                "{} chunk should be removed",
+                chunk_name
+            );
+        }
+    }
+}
+
+#[test]
+fn test_metadata_text_types() {
+    let data = load_test_image("png/metadata/metadata_compressed.png");
+
+    // Clean chunks should remove all text chunks including compressed ones
+    let cleaned = png::clean_chunks(&data).expect("Failed to clean chunks");
+    assert!(
+        !check_chunk_exists(&cleaned, b"zTXt"),
+        "zTXt chunks should be removed"
+    );
+    assert!(
+        !check_chunk_exists(&cleaned, b"iTXt"),
+        "iTXt chunks should be removed"
+    );
+}
+
+#[test]
+fn test_interlace_types() {
+    let interlace_files = vec![
+        ("png/interlace/interlace_none.png", false),
+        // interlace_adam7.png is already tested
+    ];
+
+    for (file, _is_interlaced) in interlace_files {
+        let data = load_test_image(file);
+        let cleaned = png::clean_chunks(&data).expect(&format!("Failed to clean {}", file));
+
+        // Interlacing should not affect chunk operations
+        assert_eq!(&cleaned[0..8], &[137, 80, 78, 71, 13, 10, 26, 10]);
+    }
+}
+
+#[test]
+fn test_multiple_text_chunks_with_same_keyword() {
+    let data = load_test_image("png/metadata/metadata_none.png");
+
+    // Add multiple text chunks with the same keyword
+    let data1 =
+        png::add_text_chunk(&data, "Comment", "First comment").expect("Failed to add first text");
+    let data2 = png::add_text_chunk(&data1, "Comment", "Second comment")
+        .expect("Failed to add second text");
+
+    // Both should be present
+    let chunks = png::read_text_chunks(&data2).expect("Failed to read text chunks");
+    let comment_chunks: Vec<_> = chunks.iter().filter(|c| c.keyword == "Comment").collect();
+
+    assert_eq!(comment_chunks.len(), 2, "Should have two Comment chunks");
+    assert!(comment_chunks.iter().any(|c| c.text == "First comment"));
+    assert!(comment_chunks.iter().any(|c| c.text == "Second comment"));
+}
+
+#[test]
+fn test_text_chunk_with_special_characters() {
+    let data = load_test_image("png/metadata/metadata_none.png");
+
+    // Test various special characters in text
+    let special_texts = vec![
+        ("ASCII", "Hello, World!"),
+        ("Unicode", "こんにちは世界 🌍"),
+        ("Newlines", "Line 1\nLine 2\rLine 3\r\nLine 4"),
+        ("Quotes", "\"Hello\" 'World'"),
+        ("Null", "Before\0After"), // Null should be handled properly
+    ];
+
+    for (keyword, text) in special_texts {
+        let with_text = png::add_text_chunk(&data, keyword, text)
+            .expect(&format!("Failed to add text with {}", keyword));
+
+        let chunks = png::read_text_chunks(&with_text).expect("Failed to read text chunks");
+
+        let found = chunks.iter().find(|c| c.keyword == keyword);
+        assert!(found.is_some(), "Should find {} chunk", keyword);
+
+        // For null character, it might be truncated or handled specially
+        if keyword != "Null" {
+            assert_eq!(
+                found.unwrap().text,
+                text,
+                "Text should match for {}",
+                keyword
+            );
+        }
+    }
+}
+
+#[test]
+fn test_edge_case_keyword_lengths() {
+    let data = load_test_image("png/metadata/metadata_none.png");
+
+    // Test edge cases for keyword length (1-79 characters)
+    let keyword_1 = "A";
+    let keyword_79 = "A".repeat(79);
+
+    let with_text_1 = png::add_text_chunk(&data, &keyword_1, "min length")
+        .expect("Should accept 1-character keyword");
+    let with_text_79 = png::add_text_chunk(&data, &keyword_79, "max length")
+        .expect("Should accept 79-character keyword");
+
+    let chunks_1 = png::read_text_chunks(&with_text_1).expect("Failed to read");
+    let chunks_79 = png::read_text_chunks(&with_text_79).expect("Failed to read");
+
+    assert!(chunks_1.iter().any(|c| c.keyword == keyword_1));
+    assert!(chunks_79.iter().any(|c| c.keyword == keyword_79));
+}
+
+#[test]
+fn test_large_text_content() {
+    let data = load_test_image("png/metadata/metadata_none.png");
+
+    // Test with large text content
+    let large_text = "Lorem ipsum ".repeat(1000); // ~12KB of text
+    let with_text =
+        png::add_text_chunk(&data, "Large", &large_text).expect("Should handle large text");
+
+    let chunks = png::read_text_chunks(&with_text).expect("Failed to read");
+    let found = chunks.iter().find(|c| c.keyword == "Large");
+
+    assert!(found.is_some());
+    assert_eq!(found.unwrap().text, large_text);
+}
+
+#[test]
+fn test_palette_indexed_images() {
+    let data = load_test_image("png/colortype/colortype_palette.png");
+
+    // Palette images require PLTE chunk
+    let cleaned = png::clean_chunks(&data).expect("Failed to clean palette PNG");
+
+    // PLTE should be preserved as it's critical for palette images
+    assert!(
+        check_chunk_exists(&cleaned, b"PLTE"),
+        "PLTE chunk must be preserved for palette images"
+    );
 }

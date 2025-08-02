@@ -1,11 +1,16 @@
 [package]
-name = "rust-image-meta"
+name = "web-image-meta"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
-description = "A Rust library for manipulating JPEG and PNG metadata"
+authors = ["IdeaMans Inc."]
+description = "A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for web images"
+readme = "README.md"
+homepage = "https://github.com/ideamans/rust-web-image-meta"
+repository = "https://github.com/ideamans/rust-web-image-meta"
 license = "MIT"
-repository = "https://github.com/yourusername/rust-image-meta"
+keywords = ["jpeg", "png", "metadata", "exif", "image"]
+categories = ["multimedia::images", "multimedia::encoding", "web-programming"]
+exclude = ["tests/test_data/*"]
 
 [dependencies]
 # For JPEG processing
