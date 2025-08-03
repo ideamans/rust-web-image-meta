@@ -1,8 +1,8 @@
 [package]
 name = "web-image-meta"
 version = "0.1.0"
-edition = "2021"
-authors = ["IdeaMans Inc."]
+edition = "2025"
+authors = ["ideamans Inc."]
 description = "A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for web images"
 readme = "README.md"
 homepage = "https://github.com/ideamans/rust-web-image-meta"
