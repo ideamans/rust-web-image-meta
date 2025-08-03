@@ -675,3 +675,67 @@ fn test_palette_indexed_images() {
         "PLTE chunk must be preserved for palette images"
     );
 }
+
+#[test]
+fn test_text_chunk_without_keyword() {
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    // Create a minimal valid PNG with custom tEXt chunk
+    let mut png_data = Vec::new();
+    
+    // PNG signature
+    png_data.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+    
+    // IHDR chunk
+    png_data.extend_from_slice(&[0, 0, 0, 13]); // length
+    png_data.extend_from_slice(b"IHDR");
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // width = 1
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // height = 1
+    png_data.extend_from_slice(&[8]); // bit depth
+    png_data.extend_from_slice(&[2]); // color type (RGB)
+    png_data.extend_from_slice(&[0]); // compression
+    png_data.extend_from_slice(&[0]); // filter
+    png_data.extend_from_slice(&[0]); // interlace
+    // Calculate and add CRC for IHDR
+    let ihdr_crc = crc32fast::hash(&[
+        b'I', b'H', b'D', b'R',
+        0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0
+    ]);
+    png_data.extend_from_slice(&ihdr_crc.to_be_bytes());
+    
+    // IDAT chunk (minimal compressed data)
+    let idat_data = vec![0x78, 0x9c, 0x62, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01];
+    png_data.extend_from_slice(&(idat_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"IDAT");
+    png_data.extend_from_slice(&idat_data);
+    let idat_crc = crc32fast::hash(&[b"IDAT".as_slice(), &idat_data].concat());
+    png_data.extend_from_slice(&idat_crc.to_be_bytes());
+    
+    // tEXt chunk without null separator (no keyword)
+    let text_without_keyword = b"This text has no keyword";
+    png_data.extend_from_slice(&(text_without_keyword.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"tEXt");
+    png_data.extend_from_slice(text_without_keyword);
+    let text_crc = crc32fast::hash(&[b"tEXt".as_slice(), text_without_keyword.as_slice()].concat());
+    png_data.extend_from_slice(&text_crc.to_be_bytes());
+    
+    // IEND chunk
+    png_data.extend_from_slice(&[0, 0, 0, 0]); // length
+    png_data.extend_from_slice(b"IEND");
+    let iend_crc = crc32fast::hash(b"IEND");
+    png_data.extend_from_slice(&iend_crc.to_be_bytes());
+    
+    // Create temporary file
+    let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    temp_file.write_all(&png_data).expect("Failed to write PNG data");
+    
+    // Read the file and test
+    let data = std::fs::read(temp_file.path()).expect("Failed to read temp file");
+    let chunks = png::read_text_chunks(&data).expect("Should read text chunks without error");
+    
+    // Should have one text chunk with empty keyword and the text
+    assert_eq!(chunks.len(), 1);
+    assert_eq!(chunks[0].keyword, "");
+    assert_eq!(chunks[0].text, "This text has no keyword");
+}
