@@ -128,6 +128,11 @@ pub fn read_text_chunks(data: &[u8]) -> Result<Vec<TextChunk>, Error> {
                 };
 
                 text_chunks.push(TextChunk { keyword, text });
+            } else {
+                // nullバイトがない場合、全体をテキストとして扱い、キーワードは空文字列
+                let keyword = String::new();
+                let text = String::from_utf8_lossy(chunk_data).to_string();
+                text_chunks.push(TextChunk { keyword, text });
             }
         }
 

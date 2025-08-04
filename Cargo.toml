@@ -1,6 +1,6 @@
 [package]
 name = "web-image-meta"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["ideamans Inc."]
 description = "A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for web images"
@@ -28,3 +28,4 @@ thiserror = "1.0"
 [dev-dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tempfile = "3.0"
