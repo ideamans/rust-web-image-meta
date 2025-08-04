@@ -38,7 +38,7 @@ jobs:
         echo "Version check passed: v${{ steps.get_cargo_version.outputs.CARGO_VERSION }}"
     
     - name: Check package
-      run: cargo package --verbose
+      run: cargo package --verbose --allow-dirty
     
     - name: Run tests before publish
       run: cargo test --verbose
