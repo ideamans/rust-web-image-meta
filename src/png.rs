@@ -1,7 +1,8 @@
 use crate::Error;
+use flate2::read::ZlibDecoder;
 use png::{ColorType, Decoder};
 use std::collections::HashSet;
-use std::io::Cursor;
+use std::io::{Cursor, Read};
 
 /// PNG tEXtチャンク
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,7 +80,7 @@ pub fn clean_chunks(data: &[u8]) -> Result<Vec<u8>, Error> {
     Ok(output)
 }
 
-/// PNG画像から全てのtEXtチャンクを読み取ります
+/// PNG画像から全てのテキストチャンク(tEXt、zTXt、iTXt)を読み取ります
 pub fn read_text_chunks(data: &[u8]) -> Result<Vec<TextChunk>, Error> {
     // PNGシグネチャの確認
     if data.len() < 8 || data[0..8] != [137, 80, 78, 71, 13, 10, 26, 10] {
@@ -114,25 +115,95 @@ pub fn read_text_chunks(data: &[u8]) -> Result<Vec<TextChunk>, Error> {
             break;
         }
 
-        // tEXtチャンクの場合
-        if chunk_type == b"tEXt" && length > 0 {
+        // テキストチャンクの場合
+        if (chunk_type == b"tEXt" || chunk_type == b"zTXt" || chunk_type == b"iTXt") && length > 0 {
             let chunk_data = &data[pos + 8..pos + 8 + length];
 
-            // null終端でキーワードとテキストを分離
-            if let Some(null_pos) = chunk_data.iter().position(|&b| b == 0) {
-                let keyword = String::from_utf8_lossy(&chunk_data[..null_pos]).to_string();
-                let text = if null_pos + 1 < chunk_data.len() {
-                    String::from_utf8_lossy(&chunk_data[null_pos + 1..]).to_string()
-                } else {
-                    String::new()
-                };
+            match chunk_type {
+                b"tEXt" => {
+                    // null終端でキーワードとテキストを分離
+                    if let Some(null_pos) = chunk_data.iter().position(|&b| b == 0) {
+                        let keyword = String::from_utf8_lossy(&chunk_data[..null_pos]).to_string();
+                        let text = if null_pos + 1 < chunk_data.len() {
+                            String::from_utf8_lossy(&chunk_data[null_pos + 1..]).to_string()
+                        } else {
+                            String::new()
+                        };
 
-                text_chunks.push(TextChunk { keyword, text });
-            } else {
-                // nullバイトがない場合、全体をテキストとして扱い、キーワードは空文字列
-                let keyword = String::new();
-                let text = String::from_utf8_lossy(chunk_data).to_string();
-                text_chunks.push(TextChunk { keyword, text });
+                        text_chunks.push(TextChunk { keyword, text });
+                    } else {
+                        // nullバイトがない場合、全体をテキストとして扱い、キーワードは空文字列
+                        let keyword = String::new();
+                        let text = String::from_utf8_lossy(chunk_data).to_string();
+                        text_chunks.push(TextChunk { keyword, text });
+                    }
+                }
+                b"zTXt" => {
+                    // zTXt: keyword + null + compression method + compressed text
+                    if let Some(null_pos) = chunk_data.iter().position(|&b| b == 0) {
+                        let keyword = String::from_utf8_lossy(&chunk_data[..null_pos]).to_string();
+
+                        if null_pos + 2 < chunk_data.len() {
+                            let compression_method = chunk_data[null_pos + 1];
+
+                            if compression_method == 0 {
+                                // deflate
+                                let compressed_data = &chunk_data[null_pos + 2..];
+
+                                // 圧縮されたデータを解凍
+                                let mut decoder = ZlibDecoder::new(compressed_data);
+                                let mut decompressed = Vec::new();
+
+                                if decoder.read_to_end(&mut decompressed).is_ok() {
+                                    let text = String::from_utf8_lossy(&decompressed).to_string();
+                                    text_chunks.push(TextChunk { keyword, text });
+                                }
+                            }
+                        }
+                    }
+                }
+                b"iTXt" => {
+                    // iTXt: keyword + null + compression flag + compression method + language tag + null + translated keyword + null + text
+                    if let Some(null_pos) = chunk_data.iter().position(|&b| b == 0) {
+                        let keyword = String::from_utf8_lossy(&chunk_data[..null_pos]).to_string();
+
+                        if null_pos + 3 < chunk_data.len() {
+                            let compression_flag = chunk_data[null_pos + 1];
+                            let _compression_method = chunk_data[null_pos + 2];
+
+                            // 言語タグの終了位置を探す
+                            let remaining = &chunk_data[null_pos + 3..];
+                            if let Some(lang_null_pos) = remaining.iter().position(|&b| b == 0) {
+                                // 翻訳済みキーワードの終了位置を探す
+                                let after_lang = &remaining[lang_null_pos + 1..];
+                                if let Some(trans_null_pos) =
+                                    after_lang.iter().position(|&b| b == 0)
+                                {
+                                    // テキスト部分
+                                    let text_data = &after_lang[trans_null_pos + 1..];
+
+                                    let text = if compression_flag == 1 {
+                                        // 圧縮されている場合
+                                        let mut decoder = ZlibDecoder::new(text_data);
+                                        let mut decompressed = Vec::new();
+
+                                        if decoder.read_to_end(&mut decompressed).is_ok() {
+                                            String::from_utf8_lossy(&decompressed).to_string()
+                                        } else {
+                                            continue;
+                                        }
+                                    } else {
+                                        // 圧縮されていない場合（UTF-8）
+                                        String::from_utf8_lossy(text_data).to_string()
+                                    };
+
+                                    text_chunks.push(TextChunk { keyword, text });
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
             }
         }
 

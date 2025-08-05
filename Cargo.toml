@@ -1,6 +1,6 @@
 [package]
 name = "web-image-meta"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 authors = ["ideamans Inc."]
 description = "A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for web images"
@@ -21,6 +21,7 @@ kamadak-exif = "0.5"
 # For PNG processing
 png = "0.17"
 crc32fast = "1.3"
+flate2 = "1.0"
 
 # Error handling
 thiserror = "1.0"

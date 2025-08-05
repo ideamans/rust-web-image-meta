@@ -358,9 +358,10 @@ dependencies = [
 
 [[package]]
 name = "web-image-meta"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "crc32fast",
+ "flate2",
  "jpeg-decoder",
  "jpeg-encoder",
  "kamadak-exif",
