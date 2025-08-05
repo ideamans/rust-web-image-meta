@@ -17,8 +17,9 @@ A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for
   
 - **PNG Support**
   - Remove non-critical chunks
-  - Read and write text chunks (tEXt)
+  - Read and write text chunks (tEXt, zTXt, iTXt)
   - Preserve transparency and color information
+  - Automatic decompression of compressed text chunks
 
 ## Installation
 
@@ -26,7 +27,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-web-image-meta = "0.1.0"
+web-image-meta = "0.2.0"
 ```
 
 ## Usage
@@ -62,11 +63,12 @@ let input_data = std::fs::read("input.png")?;
 let cleaned_data = png::clean_chunks(&input_data)?;
 std::fs::write("cleaned.png", cleaned_data)?;
 
-// Read PNG text chunks
+// Read PNG text chunks (supports tEXt, zTXt, iTXt)
 let chunks = png::read_text_chunks(&input_data)?;
 for chunk in chunks {
     println!("{}: {}", chunk.keyword, chunk.text);
 }
+// zTXt (compressed) and iTXt (international) chunks are automatically handled
 
 // Add text chunk to PNG
 let data_with_text = png::add_text_chunk(
@@ -111,10 +113,12 @@ Removes all non-critical chunks from a PNG file.
 - Returns: Cleaned PNG data
 
 #### `read_text_chunks(data: &[u8]) -> Result<Vec<TextChunk>, Error>`
-Reads all tEXt chunks from a PNG file.
+Reads all text chunks from a PNG file.
 
 - Returns: Vector of `TextChunk` structs
-- Only reads uncompressed tEXt chunks (not zTXt or iTXt)
+- Supports: tEXt (uncompressed), zTXt (compressed), iTXt (international)
+- Automatically decompresses zTXt chunks
+- Handles UTF-8 text in iTXt chunks
 
 #### `add_text_chunk(data: &[u8], keyword: &str, text: &str) -> Result<Vec<u8>, Error>`
 Adds a new tEXt chunk to a PNG file.
@@ -222,3 +226,4 @@ This library uses the following excellent crates:
 - [jpeg-decoder](https://crates.io/crates/jpeg-decoder) for JPEG validation
 - [png](https://crates.io/crates/png) for PNG validation
 - [crc32fast](https://crates.io/crates/crc32fast) for CRC calculation
+- [flate2](https://crates.io/crates/flate2) for zTXt/iTXt decompression

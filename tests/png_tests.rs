@@ -1,4 +1,5 @@
 use std::fs;
+use std::io::Write;
 use std::path::Path;
 use web_image_meta::png;
 use web_image_meta::Error;
@@ -557,6 +558,25 @@ fn test_metadata_text_types() {
 }
 
 #[test]
+fn test_read_compressed_text_chunks() {
+    let data = load_test_image("png/metadata/metadata_compressed.png");
+
+    // Read all text chunks including compressed ones
+    let chunks = png::read_text_chunks(&data).expect("Failed to read text chunks");
+
+    // Should have text chunks (may be tEXt, zTXt, or iTXt)
+    assert!(!chunks.is_empty(), "Should have at least one text chunk");
+
+    // All chunks should have content
+    for chunk in &chunks {
+        assert!(
+            !chunk.keyword.is_empty() || !chunk.text.is_empty(),
+            "Chunk should have keyword or text content"
+        );
+    }
+}
+
+#[test]
 fn test_interlace_types() {
     let interlace_files = vec![
         ("png/interlace/interlace_none.png", false),
@@ -678,7 +698,6 @@ fn test_palette_indexed_images() {
 
 #[test]
 fn test_text_chunk_without_keyword() {
-    use std::io::Write;
     use tempfile::NamedTempFile;
 
     // Create a minimal valid PNG with custom tEXt chunk
@@ -739,4 +758,250 @@ fn test_text_chunk_without_keyword() {
     assert_eq!(chunks.len(), 1);
     assert_eq!(chunks[0].keyword, "");
     assert_eq!(chunks[0].text, "This text has no keyword");
+}
+
+#[test]
+fn test_ztxt_chunk_reading() {
+    use flate2::write::ZlibEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    // Create a minimal valid PNG with zTXt chunk
+    let mut png_data = Vec::new();
+
+    // PNG signature
+    png_data.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+
+    // IHDR chunk
+    png_data.extend_from_slice(&[0, 0, 0, 13]); // length
+    png_data.extend_from_slice(b"IHDR");
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // width = 1
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // height = 1
+    png_data.extend_from_slice(&[8]); // bit depth
+    png_data.extend_from_slice(&[2]); // color type (RGB)
+    png_data.extend_from_slice(&[0]); // compression
+    png_data.extend_from_slice(&[0]); // filter
+    png_data.extend_from_slice(&[0]); // interlace
+    let ihdr_crc = crc32fast::hash(&[
+        b'I', b'H', b'D', b'R', 0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0,
+    ]);
+    png_data.extend_from_slice(&ihdr_crc.to_be_bytes());
+
+    // IDAT chunk (minimal compressed data)
+    let idat_data = vec![0x78, 0x9c, 0x62, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01];
+    png_data.extend_from_slice(&(idat_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"IDAT");
+    png_data.extend_from_slice(&idat_data);
+    let idat_crc = crc32fast::hash(&[b"IDAT".as_slice(), &idat_data].concat());
+    png_data.extend_from_slice(&idat_crc.to_be_bytes());
+
+    // zTXt chunk
+    let keyword = b"Comment";
+    let text = b"This is compressed text";
+
+    // Compress the text
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(text)
+        .expect("Failed to write compressed data");
+    let compressed_text = encoder.finish().expect("Failed to finish compression");
+
+    // Build zTXt chunk data
+    let mut ztxt_data = Vec::new();
+    ztxt_data.extend_from_slice(keyword);
+    ztxt_data.push(0); // null separator
+    ztxt_data.push(0); // compression method (0 = deflate)
+    ztxt_data.extend_from_slice(&compressed_text);
+
+    png_data.extend_from_slice(&(ztxt_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"zTXt");
+    png_data.extend_from_slice(&ztxt_data);
+    let ztxt_crc = crc32fast::hash(&[b"zTXt".as_slice(), &ztxt_data].concat());
+    png_data.extend_from_slice(&ztxt_crc.to_be_bytes());
+
+    // IEND chunk
+    png_data.extend_from_slice(&[0, 0, 0, 0]); // length
+    png_data.extend_from_slice(b"IEND");
+    let iend_crc = crc32fast::hash(b"IEND");
+    png_data.extend_from_slice(&iend_crc.to_be_bytes());
+
+    // Create temporary file
+    let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    temp_file
+        .write_all(&png_data)
+        .expect("Failed to write PNG data");
+
+    // Read the file and test
+    let data = std::fs::read(temp_file.path()).expect("Failed to read temp file");
+    let chunks = png::read_text_chunks(&data).expect("Should read zTXt chunks");
+
+    // Should have one text chunk with the decompressed text
+    assert_eq!(chunks.len(), 1);
+    assert_eq!(chunks[0].keyword, "Comment");
+    assert_eq!(chunks[0].text, "This is compressed text");
+}
+
+#[test]
+fn test_itxt_chunk_reading() {
+    use tempfile::NamedTempFile;
+
+    // Create a minimal valid PNG with iTXt chunk
+    let mut png_data = Vec::new();
+
+    // PNG signature
+    png_data.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+
+    // IHDR chunk
+    png_data.extend_from_slice(&[0, 0, 0, 13]); // length
+    png_data.extend_from_slice(b"IHDR");
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // width = 1
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // height = 1
+    png_data.extend_from_slice(&[8]); // bit depth
+    png_data.extend_from_slice(&[2]); // color type (RGB)
+    png_data.extend_from_slice(&[0]); // compression
+    png_data.extend_from_slice(&[0]); // filter
+    png_data.extend_from_slice(&[0]); // interlace
+    let ihdr_crc = crc32fast::hash(&[
+        b'I', b'H', b'D', b'R', 0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0,
+    ]);
+    png_data.extend_from_slice(&ihdr_crc.to_be_bytes());
+
+    // IDAT chunk (minimal compressed data)
+    let idat_data = vec![0x78, 0x9c, 0x62, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01];
+    png_data.extend_from_slice(&(idat_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"IDAT");
+    png_data.extend_from_slice(&idat_data);
+    let idat_crc = crc32fast::hash(&[b"IDAT".as_slice(), &idat_data].concat());
+    png_data.extend_from_slice(&idat_crc.to_be_bytes());
+
+    // iTXt chunk (uncompressed UTF-8)
+    let keyword = b"Title";
+    let text = "日本語のタイトル";
+
+    // Build iTXt chunk data
+    let mut itxt_data = Vec::new();
+    itxt_data.extend_from_slice(keyword);
+    itxt_data.push(0); // null separator
+    itxt_data.push(0); // compression flag (0 = uncompressed)
+    itxt_data.push(0); // compression method
+    itxt_data.extend_from_slice(b"ja"); // language tag
+    itxt_data.push(0); // null separator
+    itxt_data.extend_from_slice(b"Japanese Title"); // translated keyword
+    itxt_data.push(0); // null separator
+    itxt_data.extend_from_slice(text.as_bytes()); // UTF-8 text
+
+    png_data.extend_from_slice(&(itxt_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"iTXt");
+    png_data.extend_from_slice(&itxt_data);
+    let itxt_crc = crc32fast::hash(&[b"iTXt".as_slice(), &itxt_data].concat());
+    png_data.extend_from_slice(&itxt_crc.to_be_bytes());
+
+    // IEND chunk
+    png_data.extend_from_slice(&[0, 0, 0, 0]); // length
+    png_data.extend_from_slice(b"IEND");
+    let iend_crc = crc32fast::hash(b"IEND");
+    png_data.extend_from_slice(&iend_crc.to_be_bytes());
+
+    // Create temporary file
+    let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    temp_file
+        .write_all(&png_data)
+        .expect("Failed to write PNG data");
+
+    // Read the file and test
+    let data = std::fs::read(temp_file.path()).expect("Failed to read temp file");
+    let chunks = png::read_text_chunks(&data).expect("Should read iTXt chunks");
+
+    // Should have one text chunk with the UTF-8 text
+    assert_eq!(chunks.len(), 1);
+    assert_eq!(chunks[0].keyword, "Title");
+    assert_eq!(chunks[0].text, "日本語のタイトル");
+}
+
+#[test]
+fn test_itxt_chunk_compressed() {
+    use flate2::write::ZlibEncoder;
+    use flate2::Compression;
+    use std::io::Write;
+    use tempfile::NamedTempFile;
+
+    // Create a minimal valid PNG with compressed iTXt chunk
+    let mut png_data = Vec::new();
+
+    // PNG signature
+    png_data.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+
+    // IHDR chunk
+    png_data.extend_from_slice(&[0, 0, 0, 13]); // length
+    png_data.extend_from_slice(b"IHDR");
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // width = 1
+    png_data.extend_from_slice(&[0, 0, 0, 1]); // height = 1
+    png_data.extend_from_slice(&[8]); // bit depth
+    png_data.extend_from_slice(&[2]); // color type (RGB)
+    png_data.extend_from_slice(&[0]); // compression
+    png_data.extend_from_slice(&[0]); // filter
+    png_data.extend_from_slice(&[0]); // interlace
+    let ihdr_crc = crc32fast::hash(&[
+        b'I', b'H', b'D', b'R', 0, 0, 0, 1, 0, 0, 0, 1, 8, 2, 0, 0, 0,
+    ]);
+    png_data.extend_from_slice(&ihdr_crc.to_be_bytes());
+
+    // IDAT chunk (minimal compressed data)
+    let idat_data = vec![0x78, 0x9c, 0x62, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x01];
+    png_data.extend_from_slice(&(idat_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"IDAT");
+    png_data.extend_from_slice(&idat_data);
+    let idat_crc = crc32fast::hash(&[b"IDAT".as_slice(), &idat_data].concat());
+    png_data.extend_from_slice(&idat_crc.to_be_bytes());
+
+    // iTXt chunk (compressed UTF-8)
+    let keyword = b"Description";
+    let text = "This is a long description that benefits from compression. ".repeat(10);
+
+    // Compress the text
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder
+        .write_all(text.as_bytes())
+        .expect("Failed to write compressed data");
+    let compressed_text = encoder.finish().expect("Failed to finish compression");
+
+    // Build iTXt chunk data
+    let mut itxt_data = Vec::new();
+    itxt_data.extend_from_slice(keyword);
+    itxt_data.push(0); // null separator
+    itxt_data.push(1); // compression flag (1 = compressed)
+    itxt_data.push(0); // compression method (0 = deflate)
+    itxt_data.extend_from_slice(b"en"); // language tag
+    itxt_data.push(0); // null separator
+    itxt_data.extend_from_slice(b""); // no translated keyword
+    itxt_data.push(0); // null separator
+    itxt_data.extend_from_slice(&compressed_text); // compressed UTF-8 text
+
+    png_data.extend_from_slice(&(itxt_data.len() as u32).to_be_bytes());
+    png_data.extend_from_slice(b"iTXt");
+    png_data.extend_from_slice(&itxt_data);
+    let itxt_crc = crc32fast::hash(&[b"iTXt".as_slice(), &itxt_data].concat());
+    png_data.extend_from_slice(&itxt_crc.to_be_bytes());
+
+    // IEND chunk
+    png_data.extend_from_slice(&[0, 0, 0, 0]); // length
+    png_data.extend_from_slice(b"IEND");
+    let iend_crc = crc32fast::hash(b"IEND");
+    png_data.extend_from_slice(&iend_crc.to_be_bytes());
+
+    // Create temporary file
+    let mut temp_file = NamedTempFile::new().expect("Failed to create temp file");
+    temp_file
+        .write_all(&png_data)
+        .expect("Failed to write PNG data");
+
+    // Read the file and test
+    let data = std::fs::read(temp_file.path()).expect("Failed to read temp file");
+    let chunks = png::read_text_chunks(&data).expect("Should read compressed iTXt chunks");
+
+    // Should have one text chunk with the decompressed text
+    assert_eq!(chunks.len(), 1);
+    assert_eq!(chunks[0].keyword, "Description");
+    assert_eq!(chunks[0].text, text);
 }
