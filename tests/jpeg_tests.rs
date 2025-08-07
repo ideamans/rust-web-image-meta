@@ -199,7 +199,7 @@ fn test_estimate_text_comment() {
     // マルチバイト文字を含むコメント
     let utf8_comment = "日本語コメント";
     let size = jpeg::estimate_text_comment(utf8_comment);
-    let expected = 4 + utf8_comment.as_bytes().len();
+    let expected = 4 + utf8_comment.len();
     assert_eq!(size, expected);
 }
 
@@ -338,7 +338,7 @@ fn test_estimate_edge_cases() {
 
     // マルチバイト文字
     let utf8_comment = "これは日本語のコメントです。🎌";
-    let utf8_bytes = utf8_comment.as_bytes().len();
+    let utf8_bytes = utf8_comment.len();
     let estimated_utf8 = jpeg::estimate_text_comment(utf8_comment);
     assert_eq!(estimated_utf8, 4 + utf8_bytes);
 
