@@ -218,6 +218,30 @@ pub fn read_text_chunks(data: &[u8]) -> Result<Vec<TextChunk>, Error> {
     Ok(text_chunks)
 }
 
+/// テキストチャンク追加によるファイルサイズの増加量を見積もります
+///
+/// # Arguments
+/// * `keyword` - チャンクのキーワード（1-79文字）
+/// * `text` - テキスト内容
+///
+/// # Returns
+/// * 追加されるバイト数（長さフィールド、チャンクタイプ、キーワード、nullセパレータ、テキスト、CRCの合計）
+///
+/// # Details
+/// PNG tEXtチャンクの構造:
+/// - 長さフィールド: 4バイト
+/// - チャンクタイプ ("tEXt"): 4バイト
+/// - キーワード: keyword.len()バイト
+/// - nullセパレータ: 1バイト
+/// - テキストデータ: text.len()バイト
+/// - CRC: 4バイト
+pub fn estimate_text_chunk(keyword: &str, text: &str) -> usize {
+    let keyword_bytes = keyword.as_bytes();
+    let text_bytes = text.as_bytes();
+    // 長さ(4) + タイプ(4) + キーワード + null(1) + テキスト + CRC(4)
+    4 + 4 + keyword_bytes.len() + 1 + text_bytes.len() + 4
+}
+
 /// PNG画像に新しいtEXtチャンクを追加します
 pub fn add_text_chunk(data: &[u8], keyword: &str, text: &str) -> Result<Vec<u8>, Error> {
     // PNGシグネチャの確認

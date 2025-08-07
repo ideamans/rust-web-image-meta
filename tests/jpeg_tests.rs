@@ -182,6 +182,177 @@ fn test_write_comment_replaces_existing() {
 }
 
 #[test]
+fn test_estimate_text_comment() {
+    // 空のコメント
+    let size = jpeg::estimate_text_comment("");
+    assert_eq!(size, 4); // マーカー(2) + サイズ(2) + データ(0)
+
+    // 短いコメント
+    let size = jpeg::estimate_text_comment("Hello");
+    assert_eq!(size, 9); // マーカー(2) + サイズ(2) + データ(5)
+
+    // 長いコメント
+    let long_comment = "a".repeat(1000);
+    let size = jpeg::estimate_text_comment(&long_comment);
+    assert_eq!(size, 1004); // マーカー(2) + サイズ(2) + データ(1000)
+
+    // マルチバイト文字を含むコメント
+    let utf8_comment = "日本語コメント";
+    let size = jpeg::estimate_text_comment(utf8_comment);
+    let expected = 4 + utf8_comment.as_bytes().len();
+    assert_eq!(size, expected);
+}
+
+#[test]
+fn test_estimate_text_comment_accuracy() {
+    let data = load_test_image("jpeg/metadata/metadata_none.jpg");
+    let comment_text = "Test comment for size estimation";
+
+    // 実際にコメントを追加
+    let data_with_comment =
+        jpeg::write_comment(&data, comment_text).expect("Failed to write comment");
+
+    // サイズの増加量を計算
+    let actual_increase = data_with_comment.len() - data.len();
+
+    // 見積もりと比較
+    let estimated_increase = jpeg::estimate_text_comment(comment_text);
+
+    // 見積もりと実際の増加量が一致するか確認
+    // （既存のコメントがない場合は一致するはず）
+    assert_eq!(
+        estimated_increase, actual_increase,
+        "Estimated size increase should match actual increase"
+    );
+}
+
+#[test]
+fn test_estimate_text_comment_comprehensive() {
+    // 様々な長さのコメントでテスト
+    let x100 = "x".repeat(100);
+    let y1000 = "y".repeat(1000);
+    let z10000 = "z".repeat(10000);
+
+    let test_cases = vec![
+        ("", 4),                  // 空: マーカー(2) + サイズ(2)
+        ("A", 5),                 // 1文字: マーカー(2) + サイズ(2) + データ(1)
+        ("Hello", 9),             // 5文字: マーカー(2) + サイズ(2) + データ(5)
+        ("Test comment", 16),     // 12文字
+        (x100.as_str(), 104),     // 100文字
+        (y1000.as_str(), 1004),   // 1000文字
+        (z10000.as_str(), 10004), // 10000文字
+    ];
+
+    for (comment, expected_size) in test_cases {
+        let estimated = jpeg::estimate_text_comment(comment);
+        assert_eq!(
+            estimated,
+            expected_size,
+            "Size estimation mismatch for comment length {}: expected {}, got {}",
+            comment.len(),
+            expected_size,
+            estimated
+        );
+    }
+}
+
+#[test]
+fn test_estimate_text_comment_with_actual_files() {
+    // 実際のファイルでの検証
+    let test_images = vec![
+        "jpeg/metadata/metadata_none.jpg",
+        "jpeg/orientation/orientation_1.jpg",
+        "jpeg/orientation/orientation_3.jpg",
+        "jpeg/quality/quality_50.jpg",
+    ];
+
+    let test_comments = vec![
+        "Simple comment",
+        "This is a longer comment with multiple words",
+        "日本語を含むコメント",
+        "Mixed content: English, 日本語, émojis 🎯💯",
+        "Special chars: \n\r\t\"'<>&[]{}",
+    ];
+
+    for image_path in test_images {
+        let data = load_test_image(image_path);
+
+        // 既存のコメントがない画像のみテスト
+        if jpeg::read_comment(&data).ok().flatten().is_some() {
+            continue;
+        }
+
+        for comment in &test_comments {
+            let data_with_comment =
+                jpeg::write_comment(&data, comment).expect("Failed to write comment");
+
+            let actual_increase = data_with_comment.len() - data.len();
+            let estimated_increase = jpeg::estimate_text_comment(comment);
+
+            assert_eq!(
+                estimated_increase, actual_increase,
+                "Estimation mismatch for comment '{}' in {}: estimated {}, actual {}",
+                comment, image_path, estimated_increase, actual_increase
+            );
+        }
+    }
+}
+
+#[test]
+fn test_estimate_with_comment_replacement() {
+    let data = load_test_image("jpeg/metadata/metadata_none.jpg");
+
+    // 最初のコメントを追加
+    let first_comment = "First comment";
+    let data_with_first =
+        jpeg::write_comment(&data, first_comment).expect("Failed to write first comment");
+
+    // サイズ増加を確認
+    let first_increase = data_with_first.len() - data.len();
+    let first_estimated = jpeg::estimate_text_comment(first_comment);
+    assert_eq!(first_estimated, first_increase);
+
+    // 別のコメントで置換
+    let second_comment = "This is a much longer second comment";
+    let data_with_second = jpeg::write_comment(&data_with_first, second_comment)
+        .expect("Failed to write second comment");
+
+    // 置換時のサイズ変化を計算
+    let size_change = data_with_second.len() as i32 - data_with_first.len() as i32;
+    let expected_change = jpeg::estimate_text_comment(second_comment) as i32
+        - jpeg::estimate_text_comment(first_comment) as i32;
+
+    assert_eq!(
+        expected_change, size_change,
+        "Size change mismatch when replacing comment: expected {}, actual {}",
+        expected_change, size_change
+    );
+}
+
+#[test]
+fn test_estimate_edge_cases() {
+    // 最大サイズのコメント
+    let max_comment = "x".repeat(65533);
+    let estimated_max = jpeg::estimate_text_comment(&max_comment);
+    assert_eq!(estimated_max, 65537); // マーカー(2) + サイズ(2) + データ(65533)
+
+    // マルチバイト文字
+    let utf8_comment = "これは日本語のコメントです。🎌";
+    let utf8_bytes = utf8_comment.as_bytes().len();
+    let estimated_utf8 = jpeg::estimate_text_comment(utf8_comment);
+    assert_eq!(estimated_utf8, 4 + utf8_bytes);
+
+    // 実際のファイルで最大サイズをテスト
+    let data = load_test_image("jpeg/metadata/metadata_none.jpg");
+    if jpeg::read_comment(&data).ok().flatten().is_none() {
+        let data_with_max =
+            jpeg::write_comment(&data, &max_comment).expect("Failed to write max comment");
+        let actual_increase = data_with_max.len() - data.len();
+        assert_eq!(estimated_max, actual_increase);
+    }
+}
+
+#[test]
 fn test_invalid_jpeg_data() {
     let invalid_data = vec![0x00, 0x01, 0x02, 0x03];
 

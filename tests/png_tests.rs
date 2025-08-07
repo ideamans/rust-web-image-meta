@@ -163,6 +163,188 @@ fn test_add_multiple_text_chunks() {
 }
 
 #[test]
+fn test_estimate_text_chunk() {
+    // 空のテキストチャンク
+    let size = png::estimate_text_chunk("keyword", "");
+    assert_eq!(size, 20); // 長さ(4) + タイプ(4) + keyword(7) + null(1) + text(0) + CRC(4)
+
+    // 短いキーワードと短いテキスト
+    let size = png::estimate_text_chunk("A", "B");
+    assert_eq!(size, 15); // 長さ(4) + タイプ(4) + keyword(1) + null(1) + text(1) + CRC(4)
+
+    // 長いキーワードと長いテキスト
+    let long_keyword = "a".repeat(79); // 最大長
+    let long_text = "b".repeat(1000);
+    let size = png::estimate_text_chunk(&long_keyword, &long_text);
+    assert_eq!(size, 1092); // 長さ(4) + タイプ(4) + keyword(79) + null(1) + text(1000) + CRC(4)
+
+    // マルチバイト文字を含むテキスト
+    let utf8_text = "日本語テキスト";
+    let size = png::estimate_text_chunk("Comment", utf8_text);
+    let expected = 4 + 4 + 7 + 1 + utf8_text.as_bytes().len() + 4;
+    assert_eq!(size, expected);
+}
+
+#[test]
+fn test_estimate_text_chunk_accuracy() {
+    let data = load_test_image("png/metadata/metadata_none.png");
+    let keyword = "TestKeyword";
+    let text = "Test text for size estimation accuracy check";
+
+    // 実際にテキストチャンクを追加
+    let data_with_text =
+        png::add_text_chunk(&data, keyword, text).expect("Failed to add text chunk");
+
+    // サイズの増加量を計算
+    let actual_increase = data_with_text.len() - data.len();
+
+    // 見積もりと比較
+    let estimated_increase = png::estimate_text_chunk(keyword, text);
+
+    // 見積もりと実際の増加量が一致するか確認
+    assert_eq!(
+        estimated_increase, actual_increase,
+        "Estimated size increase should match actual increase"
+    );
+}
+
+#[test]
+fn test_estimate_text_chunk_comprehensive() {
+    // 様々な長さのキーワードとテキストでテスト
+    let k79 = "k".repeat(79);
+    let t1000 = "t".repeat(1000);
+    let m50 = "m".repeat(50);
+
+    let test_cases = vec![
+        ("A", "", 14), // 最小: 長さ(4) + タイプ(4) + keyword(1) + null(1) + text(0) + CRC(4)
+        ("Key", "Val", 19), // 短い: 長さ(4) + タイプ(4) + keyword(3) + null(1) + text(3) + CRC(4)
+        ("Author", "John Doe", 27), // 典型的
+        (k79.as_str(), "", 92), // 最大キーワード
+        ("Key", t1000.as_str(), 1016), // 長いテキスト
+        (m50.as_str(), "text", 67), // 中程度のキーワード
+    ];
+
+    for (keyword, text, expected_size) in test_cases {
+        let estimated = png::estimate_text_chunk(keyword, text);
+        assert_eq!(
+            estimated,
+            expected_size,
+            "Size estimation mismatch for keyword '{}', text length {}: expected {}, got {}",
+            keyword,
+            text.len(),
+            expected_size,
+            estimated
+        );
+    }
+}
+
+#[test]
+fn test_estimate_text_chunk_with_actual_files() {
+    // 実際のファイルでの検証
+    let test_images = vec![
+        "png/metadata/metadata_none.png",
+        "png/colortype/colortype_rgb.png",
+        "png/depth/depth_8bit.png",
+        "png/alpha/alpha_opaque.png",
+    ];
+
+    let test_chunks = vec![
+        ("Author", "Test Author"),
+        ("Title", "Test Image Title"),
+        ("Description", "A longer description of the test image"),
+        ("Copyright", "© 2024 Test Corporation"),
+        ("Comment", "Special chars: \n\r\t\"'<>&"),
+    ];
+
+    for image_path in test_images {
+        let data = load_test_image(image_path);
+
+        for (keyword, text) in &test_chunks {
+            let data_with_chunk =
+                png::add_text_chunk(&data, keyword, text).expect("Failed to add text chunk");
+
+            let actual_increase = data_with_chunk.len() - data.len();
+            let estimated_increase = png::estimate_text_chunk(keyword, text);
+
+            assert_eq!(
+                estimated_increase, actual_increase,
+                "Estimation mismatch for chunk '{}': '{}' in {}: estimated {}, actual {}",
+                keyword, text, image_path, estimated_increase, actual_increase
+            );
+        }
+    }
+}
+
+#[test]
+fn test_estimate_with_multiple_chunks() {
+    let data = load_test_image("png/metadata/metadata_none.png");
+
+    let chunks = vec![
+        ("Author", "John Doe"),
+        ("Title", "Sample Image"),
+        ("Description", "This is a test image for estimation"),
+        ("Keywords", "test, png, metadata"),
+    ];
+
+    let mut current_data = data.clone();
+    let mut total_estimated = 0;
+    let mut total_actual = 0;
+
+    for (keyword, text) in chunks {
+        let estimated = png::estimate_text_chunk(keyword, text);
+        total_estimated += estimated;
+
+        let data_with_chunk =
+            png::add_text_chunk(&current_data, keyword, text).expect("Failed to add chunk");
+
+        let increase = data_with_chunk.len() - current_data.len();
+        total_actual += increase;
+
+        // 各ステップで見積もりが正確か確認
+        assert_eq!(
+            estimated, increase,
+            "Single chunk estimation mismatch for '{}': '{}'",
+            keyword, text
+        );
+
+        current_data = data_with_chunk;
+    }
+
+    // 合計も一致するか確認
+    assert_eq!(
+        total_estimated, total_actual,
+        "Total estimation mismatch: estimated {}, actual {}",
+        total_estimated, total_actual
+    );
+}
+
+#[test]
+fn test_estimate_edge_cases() {
+    // 最大長のキーワード
+    let max_keyword = "k".repeat(79);
+    let estimated_max_keyword = png::estimate_text_chunk(&max_keyword, "test");
+    assert_eq!(estimated_max_keyword, 96); // 長さ(4) + タイプ(4) + keyword(79) + null(1) + text(4) + CRC(4)
+
+    // 大きなテキスト
+    let large_text = "x".repeat(10000);
+    let estimated_large = png::estimate_text_chunk("Key", &large_text);
+    assert_eq!(estimated_large, 10016); // 長さ(4) + タイプ(4) + keyword(3) + null(1) + text(10000) + CRC(4)
+
+    // マルチバイト文字
+    let utf8_text = "これは日本語のテキストです。🎌";
+    let utf8_bytes = utf8_text.as_bytes().len();
+    let estimated_utf8 = png::estimate_text_chunk("Comment", utf8_text);
+    assert_eq!(estimated_utf8, 4 + 4 + 7 + 1 + utf8_bytes + 4);
+
+    // 実際のファイルでテスト
+    let data = load_test_image("png/metadata/metadata_none.png");
+    let data_with_max =
+        png::add_text_chunk(&data, &max_keyword, "test").expect("Failed to add max keyword chunk");
+    let actual_increase = data_with_max.len() - data.len();
+    assert_eq!(estimated_max_keyword, actual_increase);
+}
+
+#[test]
 fn test_invalid_png_data() {
     let invalid_data = vec![0x00, 0x01, 0x02, 0x03];
 
