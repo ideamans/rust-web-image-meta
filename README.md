@@ -12,12 +12,14 @@ A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for
 - **JPEG Support**
   - Clean metadata while preserving orientation information
   - Read and write JPEG comments
+  - Estimate file size changes before modifications
   - Preserve ICC profiles
   - Remove EXIF, XMP, IPTC and other metadata
   
 - **PNG Support**
   - Remove non-critical chunks
   - Read and write text chunks (tEXt, zTXt, iTXt)
+  - Estimate file size changes before modifications
   - Preserve transparency and color information
   - Automatic decompression of compressed text chunks
 
@@ -51,6 +53,11 @@ if let Some(text) = comment {
 // Write JPEG comment
 let data_with_comment = jpeg::write_comment(&input_data, "Copyright 2024")?;
 std::fs::write("commented.jpg", data_with_comment)?;
+
+// Estimate size increase before adding comment
+let comment = "This is my comment";
+let size_increase = jpeg::estimate_text_comment(comment);
+println!("Adding comment will increase file by {} bytes", size_increase);
 ```
 
 ### PNG Examples
@@ -77,6 +84,12 @@ let data_with_text = png::add_text_chunk(
     "© 2024 Example Corp"
 )?;
 std::fs::write("tagged.png", data_with_text)?;
+
+// Estimate size increase before adding text chunk
+let keyword = "Author";
+let text = "John Doe";
+let size_increase = png::estimate_text_chunk(keyword, text);
+println!("Adding text chunk will increase file by {} bytes", size_increase);
 ```
 
 ## API Reference
@@ -103,6 +116,13 @@ Writes or replaces a comment in a JPEG file.
 - Places comment before SOS marker
 - Maximum length: 65,533 bytes
 
+#### `estimate_text_comment(comment: &str) -> usize`
+Estimates the exact file size increase when adding a comment to a JPEG file.
+
+- Returns: Number of bytes that will be added
+- Calculation: 4 bytes (marker + size field) + comment data length
+- Useful for: Pre-calculating file sizes, storage planning, bandwidth estimation
+
 ### PNG Functions
 
 #### `clean_chunks(data: &[u8]) -> Result<Vec<u8>, Error>`
@@ -126,6 +146,13 @@ Adds a new tEXt chunk to a PNG file.
 - Keyword: 1-79 Latin characters (letters, numbers, spaces)
 - Text: UTF-8 string of any length
 - Places new chunk before IEND
+
+#### `estimate_text_chunk(keyword: &str, text: &str) -> usize`
+Estimates the exact file size increase when adding a text chunk to a PNG file.
+
+- Returns: Number of bytes that will be added
+- Calculation: 13 bytes overhead (length, type, null separator, CRC) + keyword length + text length
+- Useful for: Pre-calculating file sizes, storage planning, bandwidth estimation
 
 ### Types
 
@@ -207,8 +234,9 @@ The library validates all inputs and outputs:
 ## Test Coverage
 
 The library includes comprehensive tests:
-- 53 test cases covering various scenarios
+- 70+ test cases covering various scenarios
 - Tests for different image formats, color spaces, and edge cases
+- Accurate file size estimation verification
 - Validation of output images using decoder libraries
 - Tests run on Linux, macOS, and Windows
 

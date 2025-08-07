@@ -354,6 +354,25 @@ fn validate_jpeg_decode(data: &[u8]) -> Result<(), Error> {
     }
 }
 
+/// コメント追加によるファイルサイズの増加量を見積もります
+///
+/// # Arguments
+/// * `comment` - 追加するコメント文字列
+///
+/// # Returns
+/// * 追加されるバイト数（マーカー、サイズフィールド、コメントデータの合計）
+///
+/// # Details
+/// JPEGコメントセグメントの構造:
+/// - マーカー (0xFF 0xFE): 2バイト
+/// - セグメントサイズ: 2バイト
+/// - コメントデータ: comment.len()バイト
+pub fn estimate_text_comment(comment: &str) -> usize {
+    let comment_bytes = comment.as_bytes();
+    // マーカー(2) + サイズフィールド(2) + コメントデータ
+    2 + 2 + comment_bytes.len()
+}
+
 /// JPEG画像にコメントを書き込みます
 pub fn write_comment(data: &[u8], comment: &str) -> Result<Vec<u8>, Error> {
     if data.len() < 4 || data[0..2] != JPEG_SOI {
