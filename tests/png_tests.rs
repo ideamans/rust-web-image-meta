@@ -181,7 +181,7 @@ fn test_estimate_text_chunk() {
     // マルチバイト文字を含むテキスト
     let utf8_text = "日本語テキスト";
     let size = png::estimate_text_chunk("Comment", utf8_text);
-    let expected = 4 + 4 + 7 + 1 + utf8_text.as_bytes().len() + 4;
+    let expected = 4 + 4 + 7 + 1 + utf8_text.len() + 4;
     assert_eq!(size, expected);
 }
 
@@ -332,7 +332,7 @@ fn test_estimate_edge_cases() {
 
     // マルチバイト文字
     let utf8_text = "これは日本語のテキストです。🎌";
-    let utf8_bytes = utf8_text.as_bytes().len();
+    let utf8_bytes = utf8_text.len();
     let estimated_utf8 = png::estimate_text_chunk("Comment", utf8_text);
     assert_eq!(estimated_utf8, 4 + 4 + 7 + 1 + utf8_bytes + 4);
 
