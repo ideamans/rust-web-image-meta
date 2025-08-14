@@ -434,15 +434,21 @@ fn test_cmyk_colorspace() {
 fn test_app14_adobe_preservation() {
     // CMYK JPEGにはAPP14 Adobeセグメントが含まれている
     let data = load_test_image("jpeg/colorspace/colorspace_cmyk.jpg");
-    
+
     // APP14マーカーの存在を確認
-    assert!(has_app14_adobe(&data), "Original should have APP14 Adobe segment");
-    
+    assert!(
+        has_app14_adobe(&data),
+        "Original should have APP14 Adobe segment"
+    );
+
     let cleaned = jpeg::clean_metadata(&data).expect("Failed to clean CMYK JPEG");
-    
+
     // APP14マーカーが保持されているか確認
-    assert!(has_app14_adobe(&cleaned), "APP14 Adobe segment should be preserved after cleaning");
-    
+    assert!(
+        has_app14_adobe(&cleaned),
+        "APP14 Adobe segment should be preserved after cleaning"
+    );
+
     // 有効なJPEGファイルであることを確認
     assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
 }

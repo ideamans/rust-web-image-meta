@@ -94,7 +94,9 @@ pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error> {
             // APP2 (ICC Profile) は保持
             MARKER_APP2 => segment_size > 14 && &data[pos + 2..pos + 14] == b"ICC_PROFILE\0",
             // APP14 (Adobe色空間情報) は保持
-            MARKER_APP14 => segment_size >= 14 && pos + 7 <= data.len() && &data[pos + 2..pos + 7] == b"Adobe",
+            MARKER_APP14 => {
+                segment_size >= 14 && pos + 7 <= data.len() && &data[pos + 2..pos + 7] == b"Adobe"
+            }
             // その他のAPPマーカーは削除 (0xE0, 0xE2, 0xEEは既に処理済みなので除外)
             0xE3..=0xED | 0xEF => false,
             // コメントは削除
