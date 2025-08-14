@@ -5,6 +5,7 @@ const JPEG_SOI: [u8; 2] = [0xFF, 0xD8];
 const MARKER_COM: u8 = 0xFE;
 const MARKER_APP1: u8 = 0xE1;
 const MARKER_APP2: u8 = 0xE2;
+const MARKER_APP14: u8 = 0xEE;
 
 /// JPEG画像のメタデータを軽量化します
 ///
@@ -92,8 +93,10 @@ pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error> {
             }
             // APP2 (ICC Profile) は保持
             MARKER_APP2 => segment_size > 14 && &data[pos + 2..pos + 14] == b"ICC_PROFILE\0",
-            // その他のAPPマーカーは削除 (0xE0は既に処理済みなので除外)
-            0xE3..=0xEF => false,
+            // APP14 (Adobe色空間情報) は保持
+            MARKER_APP14 => segment_size >= 14 && pos + 7 <= data.len() && &data[pos + 2..pos + 7] == b"Adobe",
+            // その他のAPPマーカーは削除 (0xE0, 0xE2, 0xEEは既に処理済みなので除外)
+            0xE3..=0xED | 0xEF => false,
             // コメントは削除
             MARKER_COM => false,
             _ => false,

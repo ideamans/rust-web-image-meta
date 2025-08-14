@@ -431,6 +431,23 @@ fn test_cmyk_colorspace() {
 }
 
 #[test]
+fn test_app14_adobe_preservation() {
+    // CMYK JPEGにはAPP14 Adobeセグメントが含まれている
+    let data = load_test_image("jpeg/colorspace/colorspace_cmyk.jpg");
+    
+    // APP14マーカーの存在を確認
+    assert!(has_app14_adobe(&data), "Original should have APP14 Adobe segment");
+    
+    let cleaned = jpeg::clean_metadata(&data).expect("Failed to clean CMYK JPEG");
+    
+    // APP14マーカーが保持されているか確認
+    assert!(has_app14_adobe(&cleaned), "APP14 Adobe segment should be preserved after cleaning");
+    
+    // 有効なJPEGファイルであることを確認
+    assert_eq!(&cleaned[0..2], &[0xFF, 0xD8]);
+}
+
+#[test]
 fn test_all_orientation_values() {
     let orientation_files = vec![
         ("jpeg/orientation/orientation_1.jpg", 1),
@@ -955,6 +972,48 @@ fn has_exif_tag(data: &[u8], tag_id: u16) -> bool {
                 if (exif_data[i] == tag_bytes_be[0] && exif_data[i + 1] == tag_bytes_be[1])
                     || (exif_data[i] == tag_bytes_le[0] && exif_data[i + 1] == tag_bytes_le[1])
                 {
+                    return true;
+                }
+            }
+        }
+
+        pos = segment_end;
+    }
+    false
+}
+
+// ヘルパー関数：APP14 Adobeセグメントの存在を確認
+fn has_app14_adobe(data: &[u8]) -> bool {
+    let mut pos = 2;
+    while pos < data.len() - 1 {
+        if data[pos] != 0xFF {
+            return false;
+        }
+
+        let marker = data[pos + 1];
+        pos += 2;
+
+        if marker == 0xDA {
+            break;
+        }
+
+        if (0xD0..=0xD9).contains(&marker) {
+            continue;
+        }
+
+        if pos + 2 > data.len() {
+            break;
+        }
+
+        let size = ((data[pos] as u16) << 8) | (data[pos + 1] as u16);
+        let segment_end = pos + size as usize;
+
+        // APP14マーカー (0xEE) でAdobeシグネチャを確認
+        if marker == 0xEE {
+            // サイズとシグネチャーを確認
+            if size >= 14 && segment_end <= data.len() {
+                // セグメントデータ部分の最初の5バイトを確認
+                if &data[pos + 2..pos + 7] == b"Adobe" {
                     return true;
                 }
             }

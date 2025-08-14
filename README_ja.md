@@ -10,15 +10,19 @@ Web画像に最適化された、JPEGとPNGのメタデータを操作するた�
 ## 機能
 
 - **JPEGサポート**
-  - オリエンテーション情報を保持しながらメタデータをクリーニング
+  - 必須情報を保持しながらメタデータをクリーニング
   - JPEGコメントの読み書き
-  - ICCプロファイルの保持
-  - EXIF、XMP、IPTCおよびその他のメタデータの削除
+  - 変更前のファイルサイズ変化を見積もり
+  - ICCプロファイルとAdobe APP14色空間情報の保持
+  - EXIFオリエンテーションを保持しつつ他のEXIFデータを削除
+  - XMP、IPTCおよびその他の非必須メタデータの削除
   
 - **PNGサポート**
   - 非重要チャンクの削除
-  - テキストチャンク（tEXt）の読み書き
+  - テキストチャンク（tEXt、zTXt、iTXt）の読み書き
+  - 変更前のファイルサイズ変化を見積もり
   - 透明度と色情報の保持
+  - 圧縮テキストチャンクの自動展開
 
 ## インストール
 
@@ -26,7 +30,7 @@ Web画像に最適化された、JPEGとPNGのメタデータを操作するた�
 
 ```toml
 [dependencies]
-web-image-meta = "0.1.0"
+web-image-meta = "0.2.0"
 ```
 
 ## 使用方法
@@ -50,6 +54,11 @@ if let Some(text) = comment {
 // JPEGコメントの書き込み
 let data_with_comment = jpeg::write_comment(&input_data, "Copyright 2024")?;
 std::fs::write("commented.jpg", data_with_comment)?;
+
+// コメント追加前にサイズ増加を見積もり
+let comment = "これは私のコメントです";
+let size_increase = jpeg::estimate_text_comment(comment);
+println!("コメント追加により {} バイト増加します", size_increase);
 ```
 
 ### PNG操作の例
@@ -75,6 +84,12 @@ let data_with_text = png::add_text_chunk(
     "© 2024 Example Corp"
 )?;
 std::fs::write("tagged.png", data_with_text)?;
+
+// テキストチャンク追加前にサイズ増加を見積もり
+let keyword = "Author";
+let text = "John Doe";
+let size_increase = png::estimate_text_chunk(keyword, text);
+println!("テキストチャンク追加により {} バイト増加します", size_increase);
 ```
 
 ## APIリファレンス
@@ -82,10 +97,10 @@ std::fs::write("tagged.png", data_with_text)?;
 ### JPEG関数
 
 #### `clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error>`
-EXIFオリエンテーション情報を除くすべてのメタデータを削除します。
+Web表示に必須の情報を除くすべてのメタデータを削除します。
 
-- 保持する項目：JFIF、ICCプロファイル、必須JPEGマーカー、EXIFオリエンテーション（タグ0x0112）
-- 削除する項目：その他のEXIFデータ、XMP、IPTC、コメント、APPマーカー（APP0、オリエンテーション付きAPP1、ICC付きAPP2を除く）
+- 保持する項目：JFIF、ICCプロファイル、Adobe APP14（色空間）、必須JPEGマーカー、EXIFオリエンテーション（タグ0x0112）
+- 削除する項目：その他のEXIFデータ、XMP、IPTC、コメント、APPマーカー（APP0、オリエンテーション付きAPP1、ICC付きAPP2、Adobe付きAPP14を除く）
 - 戻り値：クリーニングされたJPEGデータ
 
 #### `read_comment(data: &[u8]) -> Result<Option<String>, Error>`
@@ -101,6 +116,13 @@ JPEGファイルにコメントを書き込みまたは置き換えます。
 - SOSマーカーの前に配置されます
 - 最大長：65,533バイト
 
+#### `estimate_text_comment(comment: &str) -> usize`
+JPEGファイルにコメントを追加する際のファイルサイズ増加量を正確に見積もります。
+
+- 戻り値：追加されるバイト数
+- 計算：4バイト（マーカー + サイズフィールド）+ コメントデータ長
+- 用途：ファイルサイズの事前計算、ストレージ計画、帯域幅の見積もり
+
 ### PNG関数
 
 #### `clean_chunks(data: &[u8]) -> Result<Vec<u8>, Error>`
@@ -111,10 +133,12 @@ PNGファイルからすべての非重要チャンクを削除します。
 - 戻り値：クリーニングされたPNGデータ
 
 #### `read_text_chunks(data: &[u8]) -> Result<Vec<TextChunk>, Error>`
-PNGファイルからすべてのtEXtチャンクを読み取ります。
+PNGファイルからすべてのテキストチャンクを読み取ります。
 
 - 戻り値：`TextChunk`構造体のベクター
-- 非圧縮のtEXtチャンクのみを読み取ります（zTXtやiTXtは対象外）
+- サポート：tEXt（非圧縮）、zTXt（圧縮）、iTXt（国際化）
+- zTXtチャンクを自動的に展開
+- iTXtチャンクのUTF-8テキストを処理
 
 #### `add_text_chunk(data: &[u8], keyword: &str, text: &str) -> Result<Vec<u8>, Error>`
 PNGファイルに新しいtEXtチャンクを追加します。
@@ -122,6 +146,13 @@ PNGファイルに新しいtEXtチャンクを追加します。
 - キーワード：1-79文字のラテン文字（文字、数字、スペース）
 - テキスト：任意の長さのUTF-8文字列
 - IENDの前に新しいチャンクを配置します
+
+#### `estimate_text_chunk(keyword: &str, text: &str) -> usize`
+PNGファイルにテキストチャンクを追加する際のファイルサイズ増加量を正確に見積もります。
+
+- 戻り値：追加されるバイト数
+- 計算：13バイトのオーバーヘッド（長さ、タイプ、nullセパレータ、CRC）+ キーワード長 + テキスト長
+- 用途：ファイルサイズの事前計算、ストレージ計画、帯域幅の見積もり
 
 ### 型定義
 
@@ -146,6 +177,7 @@ pub enum Error {
 - 必須の画像データと構造
 - EXIFオリエンテーション（タグ0x0112）（存在する場合）
 - ICCカラープロファイル（APP2）
+- Adobe APP14マーカー（CMYK/RGB色空間情報）
 - JFIFマーカー（APP0）
 - すべてのSOFマーカー（画像エンコーディングパラメータ）
 - ハフマンテーブル（DHT）
@@ -165,7 +197,7 @@ pub enum Error {
 - IPTCデータ
 - コメント（clean_metadata使用時）
 - Photoshopリソース（APP13）
-- その他のAPPマーカー（APP3-APP15、ICC付きAPP2を除く）
+- その他のAPPマーカー（APP3-APP15、ICC付きAPP2、Adobe付きAPP14を除く）
 
 ### PNG
 - テキストチャンク：tEXt、zTXt、iTXt
@@ -203,7 +235,8 @@ pub enum Error {
 ## テストカバレッジ
 
 ライブラリには包括的なテストが含まれています：
-- 様々なシナリオをカバーする53のテストケース
+- 様々なシナリオをカバーする70以上のテストケース
+- 正確なファイルサイズ見積もりの検証
 - 異なる画像フォーマット、色空間、エッジケースのテスト
 - デコーダライブラリを使用した出力画像の検証
 - Linux、macOS、Windowsでのテスト実行
@@ -222,3 +255,4 @@ pub enum Error {
 - [jpeg-decoder](https://crates.io/crates/jpeg-decoder) - JPEG検証用
 - [png](https://crates.io/crates/png) - PNG検証用
 - [crc32fast](https://crates.io/crates/crc32fast) - CRC計算用
+- [flate2](https://crates.io/crates/flate2) - zTXt/iTXt展開用

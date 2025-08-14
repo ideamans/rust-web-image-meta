@@ -10,11 +10,12 @@ A lightweight Rust library for manipulating JPEG and PNG metadata, optimized for
 ## Features
 
 - **JPEG Support**
-  - Clean metadata while preserving orientation information
+  - Clean metadata while preserving essential information
   - Read and write JPEG comments
   - Estimate file size changes before modifications
-  - Preserve ICC profiles
-  - Remove EXIF, XMP, IPTC and other metadata
+  - Preserve ICC profiles and Adobe APP14 color space information
+  - Preserve EXIF orientation while removing other EXIF data
+  - Remove XMP, IPTC and other non-essential metadata
   
 - **PNG Support**
   - Remove non-critical chunks
@@ -97,10 +98,10 @@ println!("Adding text chunk will increase file by {} bytes", size_increase);
 ### JPEG Functions
 
 #### `clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error>`
-Removes all metadata except EXIF orientation information.
+Removes all metadata except essential information for web display.
 
-- Preserves: JFIF, ICC profiles, essential JPEG markers, EXIF orientation (tag 0x0112)
-- Removes: All other EXIF data, XMP, IPTC, comments, APP markers (except APP0, APP1 with orientation, APP2 with ICC)
+- Preserves: JFIF, ICC profiles, Adobe APP14 (color space), essential JPEG markers, EXIF orientation (tag 0x0112)
+- Removes: All other EXIF data, XMP, IPTC, comments, APP markers (except APP0, APP1 with orientation, APP2 with ICC, APP14 with Adobe)
 - Returns: Cleaned JPEG data
 
 #### `read_comment(data: &[u8]) -> Result<Option<String>, Error>`
@@ -177,6 +178,7 @@ pub enum Error {
 - Essential image data and structure
 - EXIF Orientation (tag 0x0112) when present
 - ICC color profiles (APP2)
+- Adobe APP14 markers (CMYK/RGB color space information)
 - JFIF markers (APP0)
 - All SOF markers (image encoding parameters)
 - Huffman tables (DHT)
@@ -196,7 +198,7 @@ pub enum Error {
 - IPTC data
 - Comments (when using clean_metadata)
 - Photoshop resources (APP13)
-- Other APP markers (APP3-APP15, except APP2 with ICC)
+- Other APP markers (APP3-APP15, except APP2 with ICC, APP14 with Adobe)
 
 ### PNG
 - Text chunks: tEXt, zTXt, iTXt
