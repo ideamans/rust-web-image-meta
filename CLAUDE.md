@@ -60,6 +60,9 @@ pub mod png;
 /// - 基本的なメタデータとEXIF・ICC以外を削除
 pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error>
 
+/// SOI から最初の SOS までのマーカー構造を検証します（隙間・はみ出しを検出）
+pub fn validate_structure(data: &[u8]) -> Result<(), Error>
+
 /// JPEG画像からコメントを読み取ります
 pub fn read_comment(data: &[u8]) -> Result<Option<String>, Error>
 
@@ -171,6 +174,17 @@ impl From<std::io::Error> for Error {
 テストは、削除されるべきメタデータやチャンクが削除され、必要なものが残っていることを特に確認してください。
 
 コメントの読み書きについても、既存のコメントを読めること、書き込んだコメントが正しく保存され、それを読み取ることができるか確認します。
+
+### 落とし穴（2026-10-23 の不具合から）
+
+- **出力をバイト列として走査して特定のマーカーを探さない。** ICC プロファイルなどの
+  データ中にも `FF E0` のような並びは現れる。挿入位置はマーカー単位で辿っている
+  ループの中で決める（0.2.1 は ICC の途中に EXIF を挿入し、Safari で表示されない
+  JPEG を作っていた。回帰テストは `tests/jpeg_icc_ffe0_tests.rs`）
+- **`validate_jpeg_decode` は構造の壊れを検出しない**（ヘッダを読むだけで、
+  セグメント外の余分なバイトは読み飛ばされる）。出力を返す前には
+  `validate_structure` も通し、保持すべきもの（ICC・画像データ）が入力と同じかを確かめる
+- 早期 return で末尾の検証を飛ばさないこと
 
 ### テストカバレッジ
 

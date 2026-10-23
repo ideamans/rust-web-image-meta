@@ -34,6 +34,12 @@ pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error> {
     let mut pos = 2;
     let mut has_exif = false;
     let mut orientation: Option<u16> = None;
+    // 最小 EXIF の挿入位置。JFIF（最初の APP0）があればその直後、無ければ SOI の直後。
+    // 出力を後からバイト列として走査すると、ICC などのデータ中の FF E0 を
+    // APP0 と取り違える（2026-10-23 の CMYK JPEG で ICC の途中に挿入されていた）
+    let mut exif_insert_at = JPEG_SOI.len();
+    let mut seen_app0 = false;
+    let mut scan_start: Option<usize> = None;
 
     // JPEGマーカーを解析
     while pos < data.len() - 1 {
@@ -46,6 +52,7 @@ pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error> {
 
         // SOSマーカー以降は画像データなのでそのままコピー
         if marker == 0xDA {
+            scan_start = Some(pos - 2);
             output.extend_from_slice(&[0xFF, marker]);
             output.extend_from_slice(&data[pos..]);
             break;
@@ -107,6 +114,10 @@ pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error> {
         if keep_segment {
             output.extend_from_slice(&[0xFF, marker]);
             output.extend_from_slice(&data[pos..segment_end]);
+            if marker == 0xE0 && !seen_app0 {
+                seen_app0 = true;
+                exif_insert_at = output.len();
+            }
         }
 
         pos = segment_end;
@@ -116,43 +127,27 @@ pub fn clean_metadata(data: &[u8]) -> Result<Vec<u8>, Error> {
     if let Some(orientation_value) = orientation {
         if (1..=8).contains(&orientation_value) {
             let exif_data = create_minimal_exif(orientation_value)?;
-            // JFIFマーカーの直後に挿入
-            let mut final_output = Vec::new();
-            let mut inserted = false;
-            let mut i = 0;
-
-            while i < output.len() - 1 {
-                if output[i] == 0xFF && output[i + 1] == 0xE0 && !inserted {
-                    // JFIFマーカーを見つけた
-                    let marker_size = ((output[i + 2] as u16) << 8) | (output[i + 3] as u16);
-                    let marker_end = i + 2 + marker_size as usize;
-                    final_output.extend_from_slice(&output[i..marker_end]);
-                    final_output.extend_from_slice(&exif_data);
-                    inserted = true;
-                    i = marker_end;
-                } else {
-                    final_output.push(output[i]);
-                    i += 1;
-                }
-            }
-            if i < output.len() {
-                final_output.push(output[i]);
-            }
-
-            if !inserted {
-                // JFIFマーカーがない場合はSOIの直後に挿入
-                let mut temp = vec![0xFF, 0xD8];
-                temp.extend_from_slice(&exif_data);
-                temp.extend_from_slice(&output[2..]);
-                return Ok(temp);
-            }
-
-            return Ok(final_output);
+            output.splice(exif_insert_at..exif_insert_at, exif_data);
         }
     }
 
-    // 出力が有効なJPEGか検証
+    // 出力が有効なJPEGか検証（デコードできても構造が壊れていることがあるので、両方見る）
     validate_jpeg_decode(&output)?;
+    validate_structure(&output)?;
+
+    // 保持すると決めたものが変わっていないこと
+    if icc_profile(&output) != icc_profile(data) {
+        return Err(Error::ParseError(
+            "ICC profile changed while cleaning metadata".to_string(),
+        ));
+    }
+    if let Some(start) = scan_start {
+        if !output.ends_with(&data[start..]) {
+            return Err(Error::ParseError(
+                "Image data changed while cleaning metadata".to_string(),
+            ));
+        }
+    }
 
     Ok(output)
 }
@@ -334,6 +329,115 @@ fn extract_orientation_from_exif(exif_data: &[u8]) -> Option<u16> {
     None
 }
 
+/// JPEGのマーカー構造を SOI から最初の SOS まで検証します
+///
+/// # Details
+/// - 各セグメントがファイル内に収まり、次のマーカーまで隙間なく続いていること
+///   （マーカー前の 0xFF の詰め物は規格どおり許す）
+/// - SOS に到達し、その後に画像データがあること
+///
+/// デコーダはセグメントの外の余分なバイトを読み飛ばすので、デコードできても
+/// 構造が壊れていることがある（Safari の ImageIO はそういう JPEG を表示しない）。
+/// 画素の比較では見つからないので、上書きの前にはこれも確かめること。
+pub fn validate_structure(data: &[u8]) -> Result<(), Error> {
+    if data.len() < 4 || data[0..2] != JPEG_SOI {
+        return Err(Error::InvalidFormat("Not a valid JPEG file".to_string()));
+    }
+
+    let mut pos = 2;
+    loop {
+        if pos >= data.len() {
+            return Err(Error::ParseError("JPEG ends before SOS".to_string()));
+        }
+        if data[pos] != 0xFF {
+            return Err(Error::ParseError(format!(
+                "Unexpected byte 0x{:02X} at offset {pos} (expected a marker)",
+                data[pos]
+            )));
+        }
+        // 0xFF の詰め物を読み飛ばす
+        while pos < data.len() && data[pos] == 0xFF {
+            pos += 1;
+        }
+        if pos >= data.len() {
+            return Err(Error::ParseError("JPEG ends before SOS".to_string()));
+        }
+        let marker = data[pos];
+        pos += 1;
+
+        match marker {
+            0x00 => {
+                return Err(Error::ParseError(format!(
+                    "Stuffed byte outside scan data at offset {}",
+                    pos - 2
+                )))
+            }
+            0xD8 | 0xD9 => {
+                return Err(Error::ParseError(format!(
+                    "Unexpected marker 0x{marker:02X} before SOS at offset {}",
+                    pos - 2
+                )))
+            }
+            0x01 | 0xD0..=0xD7 => continue,
+            _ => {}
+        }
+
+        if pos + 2 > data.len() {
+            return Err(Error::ParseError("Unexpected end of JPEG data".to_string()));
+        }
+        let segment_size = ((data[pos] as usize) << 8) | (data[pos + 1] as usize);
+        if segment_size < 2 {
+            return Err(Error::ParseError("Invalid segment size".to_string()));
+        }
+        let segment_end = pos + segment_size;
+        if segment_end > data.len() {
+            return Err(Error::ParseError(format!(
+                "Segment 0x{marker:02X} at offset {} extends beyond file",
+                pos - 2
+            )));
+        }
+
+        if marker == 0xDA {
+            if segment_end >= data.len() {
+                return Err(Error::ParseError("No image data after SOS".to_string()));
+            }
+            return Ok(());
+        }
+        pos = segment_end;
+    }
+}
+
+/// APP2 に分割して入っている ICC プロファイルを連結して返します（無ければ None）
+fn icc_profile(data: &[u8]) -> Option<Vec<u8>> {
+    let mut chunks: Vec<(u8, &[u8])> = Vec::new();
+    let mut pos = 2;
+    while pos + 4 <= data.len() && data[pos] == 0xFF {
+        let marker = data[pos + 1];
+        if marker == 0xDA {
+            break;
+        }
+        if (0xD0..=0xD9).contains(&marker) {
+            pos += 2;
+            continue;
+        }
+        let size = ((data[pos + 2] as usize) << 8) | (data[pos + 3] as usize);
+        let end = pos + 2 + size;
+        if size < 2 || end > data.len() {
+            break;
+        }
+        let payload = &data[pos + 4..end];
+        if marker == MARKER_APP2 && payload.len() >= 14 && &payload[..12] == b"ICC_PROFILE\0" {
+            chunks.push((payload[12], &payload[14..]));
+        }
+        pos = end;
+    }
+    if chunks.is_empty() {
+        return None;
+    }
+    chunks.sort_by_key(|(seq, _)| *seq);
+    Some(chunks.iter().flat_map(|(_, p)| p.iter().copied()).collect())
+}
+
 /// JPEGデータが正常にデコードできるか検証
 fn validate_jpeg_decode(data: &[u8]) -> Result<(), Error> {
     let mut decoder = Decoder::new(data);
@@ -465,6 +569,7 @@ pub fn write_comment(data: &[u8], comment: &str) -> Result<Vec<u8>, Error> {
 
     // 出力が有効なJPEGか検証
     validate_jpeg_decode(&output)?;
+    validate_structure(&output)?;
 
     Ok(output)
 }

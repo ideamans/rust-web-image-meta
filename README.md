@@ -103,6 +103,15 @@ Removes all metadata except essential information for web display.
 - Preserves: JFIF, ICC profiles, Adobe APP14 (color space), essential JPEG markers, EXIF orientation (tag 0x0112)
 - Removes: All other EXIF data, XMP, IPTC, comments, APP markers (except APP0, APP1 with orientation, APP2 with ICC, APP14 with Adobe)
 - Returns: Cleaned JPEG data
+- The minimal EXIF (orientation only) goes right after JFIF, or right after SOI when there is no JFIF
+- Verifies its own output: the marker structure must be intact, and the ICC profile and the image data must be byte-identical to the input. Otherwise it returns an error instead of a broken file
+
+#### `validate_structure(data: &[u8]) -> Result<(), Error>`
+Checks the marker structure from SOI to the first SOS.
+
+- Every segment must fit in the file and be followed directly by the next marker (0xFF fill bytes are allowed)
+- SOS must be reached, with image data after it
+- Decoders skip stray bytes between segments, so a JPEG can decode with identical pixels and still be broken. Safari (ImageIO) refuses such files. Run this before overwriting an original
 
 #### `read_comment(data: &[u8]) -> Result<Option<String>, Error>`
 Reads the COM (comment) segment from a JPEG file.
